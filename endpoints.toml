@@ -1,12 +1,30 @@
-[Endpoints.google]
-Description = "google"
-Destination = "http://www.google.com"
-HTTPAddress = "localhost:8081"
-Users = ["k"]
-
-
-[Endpoints.google2]
-Description = "google2"
-Destination = "https://www.google.com"
-HTTPAddress = "localhost:8082"
-Users = ["root"]
+[[endpoints]]
+name="google"
+description="google"
+h_t_t_p_address="localhost:8081"
+h_t_t_p_s_address=""
+ssl_cert=""
+ssl_key=""
+destination="http://www.google.com"
+autostart=true
+users=["k"]
+[[endpoints]]
+name="google2"
+description="google2"
+h_t_t_p_address="localhost:8082"
+h_t_t_p_s_address=""
+ssl_cert=""
+ssl_key=""
+destination="https://www.google.com"
+autostart=false
+users=["root"]
+[[endpoints]]
+name="test"
+description="treeere"
+h_t_t_p_address=":1234"
+h_t_t_p_s_address=""
+ssl_cert=""
+ssl_key=""
+destination="http://127.0.0.1:8000/"
+autostart=true
+users=[]

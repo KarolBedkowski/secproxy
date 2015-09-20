@@ -3,17 +3,19 @@
 <table class="uk-table uk-table-hover uk-table-striped uk-table-condensed">
 	<thead>
 		<tr>
-			<th class="uk-width-2-10">Endpoint</th>
-			<th class="uk-width-2-10">Success</th>
-			<th class="uk-width-2-10">401</th>
-			<th class="uk-width-2-10">403</th>
-			<th class="uk-width-2-10">All</th>
+			<th class="uk-width-1-6">Endpoint</th>
+			<th class="uk-width-1-6">Status</th>
+			<th class="uk-width-1-6">Auth Success</th>
+			<th class="uk-width-1-6">Auth 401</th>
+			<th class="uk-width-1-6">Auth 403</th>
+			<th class="uk-width-1-6">All Requests</th>
 		</tr>
 	</thead>
 	<tbody>
 		{{ range .Stats }}
 		<tr>
 			<td>{{ .Endpoint }}</td>
+			<td>{{ .Status }}</td>
 			<td>{{ .Success }}</td>
 			<td>{{ .Unauthorized }}</td>
 			<td>{{ .Fail }}</td>

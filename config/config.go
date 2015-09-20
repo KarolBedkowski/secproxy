@@ -1,10 +1,10 @@
 package config
 
 import (
+	"code.google.com/p/go.crypto/bcrypt"
 	"github.com/naoina/toml"
 	"io/ioutil"
 	log "k.prv/secproxy/logging"
-	"code.google.com/p/go.crypto/bcrypt"
 )
 
 var AppVersion = "dev"
@@ -25,7 +25,7 @@ type (
 	// AppConfiguration Main app configuration.
 	AppConfiguration struct {
 		EndpointsFilename string
-		UsersFilename string
+		UsersFilename     string
 
 		AdminPanel AdminPanelConf
 	}
@@ -82,18 +82,20 @@ func (ac *AppConfiguration) validate() bool {
 
 type (
 	EndpointConf struct {
+		Name         string
 		Description  string
 		HTTPAddress  string
 		HTTPSAddress string
 		SslCert      string
 		SslKey       string
 		Destination  string
+		Autostart    bool
 
-		Users		[]string
+		Users []string
 	}
 
 	EndpointsConf struct {
-		Endpoints map[string]EndpointConf
+		Endpoints []EndpointConf
 	}
 )
 
@@ -104,9 +106,7 @@ func LoadEndpoints(filename string) (conf *EndpointsConf, err error) {
 	conf = &EndpointsConf{}
 	content, err = ioutil.ReadFile(filename)
 	if err == nil {
-		if err = toml.Unmarshal(content, conf); err == nil {
-			err = conf.validate()
-		}
+		err = toml.Unmarshal(content, conf)
 	}
 	if err != nil {
 		log.Error("config.LoadEndpoints: ", filename, " ", err.Error())
@@ -117,23 +117,68 @@ func LoadEndpoints(filename string) (conf *EndpointsConf, err error) {
 	return
 }
 
-func (ac *EndpointsConf) validate() (err error) {
-	return nil
+func (e *EndpointsConf) Save(filename string) (err error) {
+	log.Info("config.EndpointsConf.Save: ", filename)
+	data, err := toml.Marshal(*e)
+	if err != nil {
+		log.Error("config.EndpointsConf.Save Marshal ", filename, err.Error())
+		return err
+	}
+	err = ioutil.WriteFile(filename, data, 0600)
+	if err != nil {
+		log.Error("config.EndpointsConf.Save: ", filename, err.Error())
+	}
+	log.Info("config.EndpointsConf.Save DONE ", filename)
+	return err
+
+}
+
+func (e *EndpointConf) Validate() (errors map[string]string) {
+	errors = make(map[string]string)
+	if e.HTTPAddress == "" && e.HTTPSAddress == "" {
+		errors["HTTPSAddress"] = "Missing local address"
+	}
+	if e.HTTPSAddress != "" {
+		if e.SslCert == "" {
+			errors["SslCert"] = "SSL Cert missing"
+		}
+		if e.SslKey == "" {
+			errors["SslKey"] = "SSL Key missing"
+		}
+	}
+	if e.Destination == "" {
+		errors["Destination"] = "Missing Destination"
+	}
+	return
+}
+
+func (e *EndpointConf) Clone() (ne *EndpointConf) {
+	return &EndpointConf{
+		Name:         e.Name,
+		Description:  e.Description,
+		HTTPAddress:  e.HTTPAddress,
+		HTTPSAddress: e.HTTPSAddress,
+		SslCert:      e.SslCert,
+		SslKey:       e.SslKey,
+		Destination:  e.Destination,
+		Autostart:    e.Autostart,
+
+		Users: e.Users,
+	}
 }
 
 type (
 	User struct {
-		Login    string 
-		Name     string 
-		Password string 
-		Role	string	
+		Login    string
+		Name     string
+		Password string
+		Role     string
 	}
 
 	UsersConf struct {
 		Users []User
 	}
 )
-
 
 func LoadUsers(filename string) (users *UsersConf, err error) {
 	log.Info("config.LoadUsers: ", filename)

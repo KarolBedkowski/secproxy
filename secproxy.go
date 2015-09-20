@@ -2,11 +2,11 @@ package main
 
 import (
 	"flag"
+	"k.prv/secproxy/admin"
 	"k.prv/secproxy/config"
 	log "k.prv/secproxy/logging"
 	"k.prv/secproxy/resources"
 	"k.prv/secproxy/server"
-	"k.prv/secproxy/admin"
 	//	"k.prv/secproxy/admin"
 	//	"net/http"
 	// _ "net/http/pprof" // /debug/pprof/
@@ -44,11 +44,16 @@ func main() {
 
 	server.Init(globals)
 
-	for epname := range globals.Endpoints.Endpoints {
-		server.StartEndpoint(epname, globals)
+	log.Info("Autostarting...")
+	for _, ep := range globals.Endpoints.Endpoints {
+		if ep.Autostart {
+			log.Debug("Starting ", ep.Name)
+			server.StartEndpoint(ep.Name, globals)
+		}
 	}
 
-//	server.StopEndpoint("google", globals)
+	//	server.StopEndpoint("google", globals)
 
+	log.Info("Starting Admin Panel...")
 	admin.StartAdmin(globals)
 }

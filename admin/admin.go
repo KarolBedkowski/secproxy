@@ -21,10 +21,11 @@ func StartAdmin(globals *config.Globals) {
 
 	appRouter.HandleFunc("/login", ContextHandler(loginPageHandler, globals)).Name("auth-login")
 	appRouter.HandleFunc("/logout", logoffHandler)
-	
+
 	appRouter.HandleFunc("/stats", ContextHandler(statsPageHandler, globals))
 
 	InitUsersHandlers(globals, appRouter.PathPrefix("/users"))
+	InitEndpointsHandlers(globals, appRouter.PathPrefix("/endpoints"))
 
 	http.Handle("/static/", http.StripPrefix("/static",
 		FileServer(http.Dir(globals.Config.AdminPanel.StaticDir), globals.Debug)))

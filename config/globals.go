@@ -6,13 +6,12 @@ import (
 )
 
 type (
-
 	Globals struct {
-		Debug			bool
-		Config          *AppConfiguration
-		Endpoints       *EndpointsConf
-		Users			*UsersConf
-		confFilename    string
+		Debug        bool
+		Config       *AppConfiguration
+		Endpoints    *EndpointsConf
+		Users        *UsersConf
+		confFilename string
 
 		mu sync.RWMutex
 	}
@@ -42,7 +41,6 @@ func (g *Globals) ReloadConfig() {
 	log.Info("Globals.ReloadConfig from ", g.confFilename, " DONE")
 }
 
-
 func (g *Globals) GetUser(login string) (u *User) {
 	for _, usr := range g.Users.Users {
 		if usr.Login == login {
@@ -64,3 +62,23 @@ func (g *Globals) SaveUser(u *User) {
 	g.Users.SaveUsers(g.Config.UsersFilename)
 }
 
+func (g *Globals) GetEndpoint(name string) (e *EndpointConf) {
+	for _, ep := range g.Endpoints.Endpoints {
+		if ep.Name == name {
+			return &ep
+		}
+	}
+	return nil
+}
+
+func (g *Globals) SaveEndpoint(e *EndpointConf) {
+	for idx, ep := range g.Endpoints.Endpoints {
+		if ep.Name == e.Name {
+			g.Endpoints.Endpoints[idx] = *e
+			g.Endpoints.Save(g.Config.EndpointsFilename)
+			return
+		}
+	}
+	g.Endpoints.Endpoints = append(g.Endpoints.Endpoints, *e)
+	g.Endpoints.Save(g.Config.EndpointsFilename)
+}

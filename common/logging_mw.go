@@ -33,13 +33,12 @@ func LogHandler(h http.Handler) http.HandlerFunc {
 				l.Debug("request finished ", writer.status, " ", r.Method, " ", r.URL, " ", r.RemoteAddr, " ", start.Unix(), " ", end.Sub(start).String())
 			} else {
 				l.Debug("request error ", writer.status, " ", err, " ", r.Method, " ", r.URL, " ", r.RemoteAddr, " ", start.Unix(), " ", end.Sub(start).String(),
-					" ", stack)
+					" ", string(stack))
 			}
 		}()
 		h.ServeHTTP(writer, r)
 	})
 }
-
 
 func RequestLogEntry(r *http.Request) string {
 	return r.Method + " " + r.URL.String() + " " + r.RemoteAddr

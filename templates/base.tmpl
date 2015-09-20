@@ -15,12 +15,16 @@
 		<link rel="stylesheet" href="/static/css/main.css" type="text/css"	/>
 	</head>
 	<body>
+		<nav class="uk-navbar">
+			<a href="/" class="uk-navbar-brand">SecProxy</a>
+		</nav>
 		<div class="uk-container uk-width-1-1 uk-container-center uk-margin-top uk-margin-large-bottom">
 			<div class="uk-grid" data-uk-grid-margin>
-				<div class="tm-sidebar uk-width-1-4">
+				<div class="tm-sidebar uk-width-1-5">
 					<div class="uk-panel uk-panel-box">
 						<ul class="tm-nav uk-nav" data-uk-nav>
 							<li class="uk-nav-header">Endpoints</li>
+							<li><a href="/endpoints/">Configuration</a></li>
 							<li><a href="/stats">Stats</a></li>
 							<li class="uk-nav-header">Admin</li>
 							<li><a href="/users/">Users</a></li>
@@ -29,7 +33,7 @@
 						</ul>
 					</div>
 				</div>
-				<div class="tm-main uk-width-3-4">
+				<div class="tm-main uk-width-4-5">
 					<main>
 					{{ template "flash" . }}
 					{{ template "body" . }}

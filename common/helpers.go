@@ -21,4 +21,3 @@ func BuildQuery(pairs ...string) (query string) {
 	}
 	return
 }
-
