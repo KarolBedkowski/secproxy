@@ -6,14 +6,10 @@ import (
 )
 
 type (
-	EndpointStatus struct {
-		Running bool
-	}
 
 	Globals struct {
 		Config          *AppConfiguration
 		Endpoints       *EndpointsConf
-		EndpointsStatus map[string]EndpointStatus
 		confFilename    string
 
 		mu sync.RWMutex
