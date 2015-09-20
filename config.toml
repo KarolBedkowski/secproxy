@@ -1,6 +1,7 @@
 
 Debug = true
 EndpointsFilename = "endpoints.toml"
+UsersFilename = "users.toml"
 
 [AdminPanel]
 	StaticDir = "./static"

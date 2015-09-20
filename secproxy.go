@@ -44,7 +44,7 @@ func main() {
 		server.StartEndpoint(epname, globals)
 	}
 
-	server.StopEndpoint("google", globals)
+//	server.StopEndpoint("google", globals)
 
 	admin.StartAdmin(globals)
 }

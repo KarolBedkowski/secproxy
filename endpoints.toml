@@ -2,9 +2,11 @@
 Description = "google"
 Destination = "http://www.google.com"
 HTTPAddress = "localhost:8081"
+Users = ["k"]
 
 
 [Endpoints.google2]
 Description = "google2"
-Destination = "http://www.google.com"
+Destination = "https://www.google.com"
 HTTPAddress = "localhost:8082"
+Users = ["root"]

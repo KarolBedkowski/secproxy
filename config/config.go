@@ -4,6 +4,7 @@ import (
 	"github.com/naoina/toml"
 	"io/ioutil"
 	log "k.prv/secproxy/logging"
+	"code.google.com/p/go.crypto/bcrypt"
 )
 
 var AppVersion = "dev"
@@ -25,6 +26,7 @@ type (
 	AppConfiguration struct {
 		Debug             bool
 		EndpointsFilename string
+		UsersFilename string
 
 		AdminPanel AdminPanelConf
 	}
@@ -88,6 +90,8 @@ type (
 		SslCert      string
 		SslKey       string
 		Destination  string
+
+		Users		[]string
 	}
 
 	EndpointsConf struct {
@@ -95,7 +99,7 @@ type (
 	}
 )
 
-// LoadConfiguration from given file
+// LoadEndpoints from given file
 func LoadEndpoints(filename string) (conf *EndpointsConf, err error) {
 	log.Info("config.LoadEndpoints: ", filename)
 	var content []byte
@@ -117,4 +121,42 @@ func LoadEndpoints(filename string) (conf *EndpointsConf, err error) {
 
 func (ac *EndpointsConf) validate() (err error) {
 	return nil
+}
+
+type (
+	User struct {
+		Login    string
+		Name     string
+		Password string
+	}
+
+	UsersConf struct {
+		Users []User
+	}
+)
+
+
+func LoadUsers(filename string) (users *UsersConf, err error) {
+	log.Info("config.LoadUsers: ", filename)
+	var content []byte
+	users = &UsersConf{}
+	content, err = ioutil.ReadFile(filename)
+	if err == nil {
+		err = toml.Unmarshal(content, users)
+	}
+	if err != nil {
+		log.Error("config.LoadUsers: ", filename, " ", err.Error())
+	} else {
+		log.Info("config.LoadUsers loaded ", len(users.Users))
+	}
+
+	return
+}
+
+func (u *User) CheckPassword(pass string) (ok bool) {
+	err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(pass))
+	if err == nil {
+		return true
+	}
+	return u.Password == pass
 }
