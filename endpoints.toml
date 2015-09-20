@@ -1,0 +1,10 @@
+[Endpoints.google]
+Description = "google"
+Destination = "http://www.google.com"
+HTTPAddress = "localhost:8081"
+
+
+[Endpoints.google2]
+Description = "google2"
+Destination = "http://www.google.com"
+HTTPAddress = "localhost:8082"

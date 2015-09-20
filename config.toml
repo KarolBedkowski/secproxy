@@ -1,0 +1,15 @@
+
+Debug = true
+EndpointsFilename = "endpoints.toml"
+
+[AdminPanel]
+	StaticDir = "./static"
+	TemplatesDir = "./templates"
+	CookieAuthKey = "12345678901234567890123456789012"
+	CookieEncKey = "12345678901234567890123456789012"
+	SessionStoreDir = "./temp"
+	HTTPAddress = ":8000"
+	HTTPSAddress = ""
+	SslCert = "key.pem"
+	SslKey = "cert.pem"
+
