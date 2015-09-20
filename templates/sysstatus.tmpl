@@ -1,0 +1,25 @@
+{{define "body"}}
+<h2 class="ui header">System Status</h2>
+<div class="ui top attached tabular menu">
+	<a class="item active" data-tab="system">System</a>
+	<a class="item" data-tab="conf">Configuration</a>
+</div>
+<div class="ui bottom attached tab segment active" data-tab="system">
+	<p>NumGoroutine: {{ .NumGoroutine }}</p>
+	<h2>Memory</h2>
+	<pre>{{ .Memstats }}</pre>
+</div>
+<div class="ui bottom attached tab segment" data-tab="conf">
+	<p><a href="/sysstatus/confreload" class="ui button">Reload</a></p>
+	<pre>{{ .Config }}</pre>
+</div>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script type="text/javascript" charset="utf-8">
+	$(function() {
+		$('.menu .item').tab();
+	});
+</script>
+{{end}}

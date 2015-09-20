@@ -1,6 +1,10 @@
-[[Users]]
-Login = "k"
-Name = "k"
-Password = "123"
-
-
+[[users]]
+login="k"
+name="k"
+password="$2a$10$S/lJTS/zWzk7Sptl7v6W0eFhWp.d2rn7ccPMhobCqTGigZwlNHtKC"
+role="ADMIN"
+[[users]]
+login="admin"
+name="admin"
+password="$2a$10$uVtVNcwsjqkNm/w.Q8.yjOS3gp.1GmMJx.WWqqPAU9PIzpD7Tvhzm"
+role="ADMIN"

@@ -1,12 +1,37 @@
 package admin
 
 import (
+	"github.com/gorilla/mux"
+	"github.com/gorilla/schema"
+	"k.prv/secproxy/common"
 	"k.prv/secproxy/config"
 	log "k.prv/secproxy/logging"
 	"net/http"
 )
 
+var (
+	appRouter = mux.NewRouter()
+	decoder   = schema.NewDecoder()
+)
+
 func StartAdmin(globals *config.Globals) {
+
+	InitSessionStore(globals.Config)
+	appRouter.HandleFunc("/", SecurityContextHandler(mainPageHandler, globals, ""))
+
+	appRouter.HandleFunc("/login", ContextHandler(loginPageHandler, globals)).Name("auth-login")
+	appRouter.HandleFunc("/logout", logoffHandler)
+	
+	appRouter.HandleFunc("/stats", ContextHandler(statsPageHandler, globals))
+
+	InitUsersHandlers(globals, appRouter.PathPrefix("/users"))
+
+	http.Handle("/static/", http.StripPrefix("/static",
+		FileServer(http.Dir(globals.Config.AdminPanel.StaticDir), globals.Debug)))
+	http.Handle("/favicon.ico", FileServer(http.Dir(globals.Config.AdminPanel.StaticDir), globals.Debug))
+
+	http.Handle("/", common.LogHandler(CsrfHandler(SessionHandler(appRouter))))
+
 	if globals.Config.AdminPanel.HTTPSAddress != "" {
 		log.Info("admin.StartAdmin Listen HTTPS: ", globals.Config.AdminPanel.HTTPSAddress)
 
@@ -30,4 +55,23 @@ func StartAdmin(globals *config.Globals) {
 			log.Error("admin.StartAdmin Error listening http, ", err)
 		}
 	}
+}
+
+func mainPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
+	RenderTemplateStd(w, bctx, "index.tmpl")
+}
+
+// GetNamedURL - Return url for named route and parameters
+func GetNamedURL(name string, pairs ...string) (url string) {
+	route := appRouter.Get(name)
+	if route == nil {
+		log.Error("GetNamedURL " + name + " error")
+		return ""
+	}
+	rurl, err := route.URL(pairs...)
+	if err != nil {
+		log.Error("GetNamedURL " + name + " error " + err.Error())
+		return ""
+	}
+	return rurl.String()
 }

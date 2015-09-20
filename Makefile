@@ -20,7 +20,7 @@ clean:
 run:
 	# mkdir temp || true
 	git checkout resources/resources.go
-	go-reload secproxy.go
+	go-reload secproxy.go -- -debug=1
 
 certs:
 	openssl genrsa 2048 > key.pem

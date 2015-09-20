@@ -1,4 +1,4 @@
-package server
+package common
 
 import (
 	l "k.prv/secproxy/logging"
@@ -38,4 +38,9 @@ func LogHandler(h http.Handler) http.HandlerFunc {
 		}()
 		h.ServeHTTP(writer, r)
 	})
+}
+
+
+func RequestLogEntry(r *http.Request) string {
+	return r.Method + " " + r.URL.String() + " " + r.RemoteAddr
 }

@@ -74,3 +74,5 @@ func Error(v ...interface{}) {
 func Panic(v ...interface{}) {
 	logger.Panic(v...)
 }
+
+

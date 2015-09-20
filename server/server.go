@@ -3,6 +3,7 @@ package server
 import (
 	"k.prv/secproxy/config"
 	l "k.prv/secproxy/logging"
+	"k.prv/secproxy/common"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -44,7 +45,7 @@ func StartEndpoint(name string, globals *config.Globals) {
 	if len(conf.Users) > 0 {
 		handler = authenticationMW(handler, name, globals)
 	}
-	handler = LogHandler(handler)
+	handler = common.LogHandler(handler)
 
 	s := &http.Server{
 		Addr:         conf.HTTPAddress,
@@ -87,7 +88,7 @@ func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) 
 			w.Header().Set("WWW-Authenticate", "Basic realm=\"REALM\"")
 			l.Info("authenticationMW ", endpoint, " 401 Unauthorized")
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			counters.Add(endpoint + "-403", 1)
+			counters.Add(endpoint + "-401", 1)
 			return
 		}
 

@@ -14,10 +14,12 @@ import (
 	//"time"
 )
 
+// http://localhost:8000/debug/vars
+
 func main() {
 	log.Info("Starting... ver %s", config.AppVersion)
 	configFilename := flag.String("config", "./config.toml", "Configuration filename")
-	debug := flag.Int("debug", -1, "Run in debug mode (1) or normal (0)")
+	debug := flag.Int("debug", 1, "Run in debug mode (1) or normal (0)")
 	forceLocalFiles := flag.Bool("forceLocalFiles", false, "Force use local files instead of embended assets")
 	localFilesPath := flag.String("localFilesPath", ".", "Path to static and templates directory")
 	logFilename := flag.String("log", "./secproxy.log", "Log file name")
@@ -27,7 +29,9 @@ func main() {
 
 	globals := config.NewGlobals(*configFilename, *debug)
 
-	if !globals.Config.Debug {
+	log.Info("Debug=", globals.Debug)
+
+	if !globals.Debug {
 		log.Info("NumCPU: %d", runtime.NumCPU())
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}

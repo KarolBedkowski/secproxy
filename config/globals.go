@@ -8,6 +8,7 @@ import (
 type (
 
 	Globals struct {
+		Debug			bool
 		Config          *AppConfiguration
 		Endpoints       *EndpointsConf
 		Users			*UsersConf
@@ -20,6 +21,7 @@ type (
 func NewGlobals(confFilename string, debug int) *Globals {
 	globals := &Globals{}
 	globals.confFilename = confFilename
+	globals.Debug = debug > 0
 	globals.ReloadConfig()
 
 	if globals.Config.EndpointsFilename == "" {
@@ -30,6 +32,7 @@ func NewGlobals(confFilename string, debug int) *Globals {
 	globals.Endpoints, _ = LoadEndpoints(globals.Config.EndpointsFilename)
 	globals.Users, _ = LoadUsers(globals.Config.UsersFilename)
 
+	globals.Users.SaveUsers("1.toml")
 	return globals
 }
 
@@ -48,3 +51,16 @@ func (g *Globals) GetUser(login string) (u *User) {
 	}
 	return nil
 }
+
+func (g *Globals) SaveUser(u *User) {
+	for idx, usr := range g.Users.Users {
+		if usr.Login == u.Login {
+			g.Users.Users[idx] = *u
+			g.Users.SaveUsers(g.Config.UsersFilename)
+			return
+		}
+	}
+	g.Users.Users = append(g.Users.Users, *u)
+	g.Users.SaveUsers(g.Config.UsersFilename)
+}
+

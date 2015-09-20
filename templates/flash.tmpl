@@ -1,0 +1,37 @@
+{{define "flash"}}
+{{ $flash := .GetFlashMessage }}
+<div id="flash-container">
+	<div class="">
+		{{ with $flash.error }}
+		<div class="uk-alert uk-alert-danger" id="flash-error"  data-uk-alert>
+			<a href="" class="uk-alert-close uk-close"></a>
+			<ul>
+			{{ range . }}
+				<li>{{ . }}</li>
+			{{end}}
+			</ul>
+		</div>
+		{{ end }}
+		{{ with $flash.info }}
+		<div class="uk-alert" id="flash-info" data-uk-alert>
+			<a href="" class="uk-alert-close uk-close"></a>
+			<ul>
+			{{ range . }}
+				<li>{{ . }}</li>
+			{{end}}
+			</ul>
+		</div>
+		{{ end }}
+		{{ with $flash.success }}
+		<div class="uk-alert uk-alert-successr" id="flash-success" data-uk-alert>
+			<a href="" class="uk-alert-close uk-close"></a>
+			<ul>
+			{{ range . }}
+				<li>{{ . }}</li>
+			{{end}}
+			</ul>
+		</div>
+		{{ end }}
+	</div>
+</div>
+{{end}}

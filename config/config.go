@@ -24,7 +24,6 @@ type (
 
 	// AppConfiguration Main app configuration.
 	AppConfiguration struct {
-		Debug             bool
 		EndpointsFilename string
 		UsersFilename string
 
@@ -66,7 +65,6 @@ func (ac *AppConfiguration) SaveConfiguration(filename string) error {
 }
 
 func (ac *AppConfiguration) loadDefaults() {
-	ac.Debug = true
 	ac.AdminPanel.CookieAuthKey = "12345678901234567890123456789012"
 	ac.AdminPanel.CookieEncKey = "12345678901234567890123456789012"
 	ac.AdminPanel.SessionStoreDir = "./temp"
@@ -125,9 +123,10 @@ func (ac *EndpointsConf) validate() (err error) {
 
 type (
 	User struct {
-		Login    string
-		Name     string
-		Password string
+		Login    string 
+		Name     string 
+		Password string 
+		Role	string	
 	}
 
 	UsersConf struct {
@@ -153,10 +152,51 @@ func LoadUsers(filename string) (users *UsersConf, err error) {
 	return
 }
 
+func (uc *UsersConf) SaveUsers(filename string) error {
+	log.Info("config.SaveUsers: ", filename)
+	data, err := toml.Marshal(*uc)
+	if err != nil {
+		log.Error("config.SaveUsers Marshal ", filename, err.Error())
+		return err
+	}
+	err = ioutil.WriteFile(filename, data, 0600)
+	if err != nil {
+		log.Error("config.SaveUsers: ", filename, err.Error())
+	}
+	log.Info("config.SaveUsers DONE ", filename)
+	return err
+}
+
 func (u *User) CheckPassword(pass string) (ok bool) {
 	err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(pass))
 	if err == nil {
 		return true
 	}
 	return u.Password == pass
+}
+
+func (u *User) UpdatePassword(newPass string) {
+	if newPass == "" {
+		u.Password = ""
+	} else {
+		data, err := bcrypt.GenerateFromPassword([]byte(newPass), bcrypt.DefaultCost)
+		if err != nil {
+			log.Error("UpdatePassword error ", u, err)
+		} else {
+			u.Password = string(data)
+		}
+	}
+}
+
+func (u *User) Validate() (errors map[string]string) {
+	return
+}
+
+func (u *User) Clone() (nu *User) {
+	return &User{
+		u.Login,
+		u.Name,
+		u.Password,
+		u.Role,
+	}
 }
