@@ -82,3 +82,15 @@ func (g *Globals) SaveEndpoint(e *EndpointConf) {
 	g.Endpoints.Endpoints = append(g.Endpoints.Endpoints, *e)
 	g.Endpoints.Save(g.Config.EndpointsFilename)
 }
+
+func (g *Globals) DeleteEndpoint(name string) (ok bool) {
+	for idx, ep := range g.Endpoints.Endpoints {
+		if ep.Name == name {
+			g.Endpoints.Endpoints = append(g.Endpoints.Endpoints[:idx],
+			g.Endpoints.Endpoints[idx+1:]...)
+			g.Endpoints.Save(g.Config.EndpointsFilename)
+			return true
+		}
+	}
+	return false
+}

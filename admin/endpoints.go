@@ -46,7 +46,6 @@ type (
 	endpointForm struct {
 		*config.EndpointConf
 		Errors map[string]string `schema:"-"`
-		method string            `schema:"_method"`
 	}
 )
 
@@ -143,9 +142,18 @@ func endpointActionPageHandler(w http.ResponseWriter, r *http.Request, bctx *Bas
 		} else {
 			bctx.AddFlashMessage("Endpoint failed to start: "+err, "error")
 		}
+		break;
 	case "stop":
 		server.StopEndpoint(epname)
 		bctx.AddFlashMessage("Endpoint stopped", "success")
+		break;
+	case "delete":
+		server.StopEndpoint(epname)
+		bctx.Globals.DeleteEndpoint(epname)
+		bctx.AddFlashMessage("Endpoint deleted", "success")
+		break
+	default:
+		l.Warn("admin.endpointActionPageHandler invalid action: ", action)
 	}
 	bctx.Save()
 	http.Redirect(w, r, "/endpoints/", http.StatusFound)
