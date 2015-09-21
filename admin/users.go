@@ -112,3 +112,64 @@ func userPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 	ctx.Save()
 	RenderTemplateStd(w, ctx, "users/user.tmpl")
 }
+
+
+type (
+	chpassForm struct {
+		CurrentPass	string
+		NewPassword  string
+		NewPasswordC string
+		Errors       map[string]string `schema:"-"`
+	}
+)
+
+func chpassPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
+	ctx := &struct {
+		*BasePageContext
+		Form     chpassForm
+	}{
+		BasePageContext: bctx,
+	}
+
+	suser, ok := bctx.Session.GetLoggedUser()
+	if !ok || suser == nil {
+		l.Error("admin.chpassPageHandler user not logged")
+		http.Error(w, "Not logged user", http.StatusBadRequest)
+		return
+	}
+
+	switch r.Method {
+	case "POST":
+		r.ParseForm()
+		if err := decoder.Decode(&ctx.Form, r.Form); err != nil {
+			l.Error("admin.chpassPageHandler decode form error ", err, r.Form)
+			break
+		}
+
+		user := bctx.Globals.GetUser(suser.Login)
+		if  user == nil {
+			l.Error("admin.chpassPageHandler user not found ", suser.Login)
+			http.Error(w, "Bad user", http.StatusBadRequest)
+			return
+		}
+		
+		ctx.Form.Errors = make(map[string]string)
+		if !user.CheckPassword(ctx.Form.CurrentPass) {
+			ctx.Form.Errors["CurrentPass"] = "Wrong password"
+			break
+		}
+		if ctx.Form.NewPasswordC != ctx.Form.NewPassword {
+			ctx.Form.Errors["NewPassword"] = "Passwords not match"
+			break
+		}
+		user.UpdatePassword(ctx.Form.NewPassword)
+		bctx.Globals.SaveUser(user)
+		ctx.AddFlashMessage("Password updated", "success")
+		ctx.Save()
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+	ctx.Save()
+	RenderTemplateStd(w, ctx, "users/chpass.tmpl")
+}
+

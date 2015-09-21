@@ -21,6 +21,7 @@ func StartAdmin(globals *config.Globals) {
 
 	appRouter.HandleFunc("/login", ContextHandler(loginPageHandler, globals)).Name("auth-login")
 	appRouter.HandleFunc("/logout", logoffHandler)
+	appRouter.HandleFunc("/chpass", SecurityContextHandler(chpassPageHandler, globals, ""))
 
 	appRouter.HandleFunc("/stats", ContextHandler(statsPageHandler, globals))
 

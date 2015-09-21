@@ -33,6 +33,7 @@
 							<li{{ if $ctx.URLStartsWith "/users" }} class="uk-active" {{ end }} ><a href="/users/">Users</a></li>
 							{{ end }}
 							<li class="uk-nav-header"></li>
+							<li {{ if $ctx.URLStartsWith "/chpass" }} class="uk-active" {{ end }}><a href="/chpass">Change pass.</a></li>
 							<li><a href="/logout">Logout</a></li>
 						</ul>
 					</div>
