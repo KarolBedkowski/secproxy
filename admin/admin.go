@@ -59,7 +59,8 @@ func StartAdmin(globals *config.Globals) {
 }
 
 func mainPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
-	RenderTemplateStd(w, bctx, "index.tmpl")
+	//	RenderTemplateStd(w, bctx, "index.tmpl")
+	http.Redirect(w, r, "/stats", http.StatusFound)
 }
 
 // GetNamedURL - Return url for named route and parameters

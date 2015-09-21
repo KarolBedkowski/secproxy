@@ -4,6 +4,7 @@ import (
 	"k.prv/secproxy/common"
 	"k.prv/secproxy/config"
 	"net/http"
+	"strings"
 )
 
 type PageContextInterface interface {
@@ -77,6 +78,15 @@ func (ctx *BasePageContext) Save() error {
 func (ctx *BasePageContext) UserLogged() bool {
 	user, ok := ctx.Session.GetLoggedUser()
 	return ok && user != nil
+}
+
+func (ctx *BasePageContext) HasUserRole(role string) bool {
+	user, ok := ctx.Session.GetLoggedUser()
+	return ok && user.Role == role
+}
+
+func (ctx *BasePageContext) URLStartsWith(prefix string) bool {
+	return strings.HasPrefix(ctx.Request.URL.Path, prefix)
 }
 
 // BaseContextHandlerFunc - handler function called by HandleWithContext and HandleWithContextSec

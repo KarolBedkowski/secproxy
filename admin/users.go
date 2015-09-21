@@ -10,8 +10,8 @@ import (
 // Init - Initialize application
 func InitUsersHandlers(globals *config.Globals, parentRotuer *mux.Route) {
 	router := parentRotuer.Subrouter()
-	router.HandleFunc("/{login}", ContextHandler(userPageHandler, globals))
-	router.HandleFunc("/", ContextHandler(usersPageHandler, globals))
+	router.HandleFunc("/{login}", SecurityContextHandler(userPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/", SecurityContextHandler(usersPageHandler, globals, "ADMIN"))
 }
 
 func usersPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {

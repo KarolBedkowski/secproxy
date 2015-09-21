@@ -22,12 +22,16 @@
 			<div class="uk-grid" data-uk-grid-margin>
 				<div class="tm-sidebar uk-width-1-5">
 					<div class="uk-panel uk-panel-box">
-						<ul class="tm-nav uk-nav" data-uk-nav>
+						<ul class="tm-nav uk-nav uk-nav-side" data-uk-nav>
 							<li class="uk-nav-header">Endpoints</li>
-							<li><a href="/endpoints/">Configuration</a></li>
-							<li><a href="/stats">Stats</a></li>
+							{{ if $ctx.HasUserRole "ADMIN" }}
+							<li {{ if $ctx.URLStartsWith "/endpoints" }} class="uk-active" {{ end }}><a href="/endpoints/">Configuration</a></li>
+							{{ end }}
+							<li{{ if $ctx.URLStartsWith "/stats" }} class="uk-active" {{ end }}><a href="/stats">Stats</a></li>
+							{{ if $ctx.HasUserRole "ADMIN" }}
 							<li class="uk-nav-header">Admin</li>
-							<li><a href="/users/">Users</a></li>
+							<li{{ if $ctx.URLStartsWith "/users" }} class="uk-active" {{ end }} ><a href="/users/">Users</a></li>
+							{{ end }}
 							<li class="uk-nav-header"></li>
 							<li><a href="/logout">Logout</a></li>
 						</ul>

@@ -1,66 +1,92 @@
 {{ define "body" }}
+{{ $ctx := . }}
 <h1>Endpoint</h1>
 <div class="uk-grid">
-<form method="POST" id="form" class="uk-form uk-form-horizontal ui-width-1-1">
-	<fieldset data-uk-margin>
-		{{ $nameError := .Form.Errors.Name }}
-		<div class="uk-form-row {{ if $nameError }} error {{ end }}">
-			<label class="uk-form-label">Name</label>
-			<div class="uk-form-controls">
-				<input type="text" name="Name" value="{{ .Form.Name }}" required maxlength="15" {{ if ne .Form.Name "" }} readonly {{ end }}>
-				{{ with $nameError }}<label class="error">{{ . }}</label>{{ end }}
-			</div>
-		</div>
-		<div class="uk-form-row">
-			<label class="uk-form-label">Description</label>
-			<div class="uk-form-controls">
-				<input type="text" name="Description" value="{{ .Form.Description }}" >
-			</div>
-		</div>
-		<div class="uk-form-row">
-			<label class="uk-form-label">HTTP Address</label>
-			<div class="uk-form-controls">
-				<input type="text" name="HTTPAddress" value="{{ .Form.HTTPAddress }}" >
-			</div>
-		</div>
-		<div class="uk-form-row">
-			<label class="uk-form-label">HTTPS Address</label>
-			<div class="uk-form-controls">
-				<input type="text" name="HTTPSAddress" value="{{ .Form.HTTPSAddress }}" >
-			</div>
-		</div>
-		<div class="uk-form-row">
-			<label class="uk-form-label">SSLCert</label>
-			<div class="uk-form-controls">
-				<input type="text" name="SslCert" value="{{ .Form.SslCert }}" >
-			</div>
-		</div>
-		<div class="uk-form-row">
-			<label class="uk-form-label">SSLKey</label>
-			<div class="uk-form-controls">
-				<input type="text" name="SslKey" value="{{ .Form.SslKey }}" >
-			</div>
-		</div>
-		<div class="uk-form-row">
-			<label class="uk-form-label">Destination</label>
-			<div class="uk-form-controls">
-				<input type="url" name="Destination" value="{{ .Form.Destination }}" required>
-			</div>
-		</div>
-		<div class="uk-form-row">
-			<label class="uk-form-label">Autostart</label>
-			<div class="uk-form-controls">
-				<input type="checkbox" name="Autostart" {{ if .Form.Autostart }} checked {{ end }} >
-			</div>
-		</div>
-		<div class="uk-form-row">
-			<a href="/endpoints/" class="uk-button">Cancel</a>
-			<button type="submit" class="uk-button uk-button-primary">Save</button>
-		</div>
-	</fieldset>
-	<input type="hidden" name="BasePageContext.CsrfToken" id="" value="{{ .CsrfToken }}" />
-	<input type="hidden" name="_method" value="" id="form-method" />
-</form>
+	<form method="POST" id="form" class="uk-form uk-form-horizontal ui-width-1-1">
+		<ul class="uk-tab" data-uk-tab="{connect:'#tab-content'}">
+			<li class="uk-active"><a href="#">Main</a></li>
+			<li><a href="#">Users</a></li>
+		</ul>
+		 <ul id="tab-content" class="uk-switcher uk-margin">
+			<li class="uk-active">
+				<fieldset data-uk-margin>
+					{{ $nameError := .Form.Errors.Name }}
+					<div class="uk-form-row {{ if $nameError }} error {{ end }}">
+						<label class="uk-form-label">Name</label>
+						<div class="uk-form-controls">
+							<input type="text" name="Name" value="{{ .Form.Name }}" required maxlength="15" {{ if ne .Form.Name "" }} readonly {{ end }}>
+							{{ with $nameError }}<label class="error">{{ . }}</label>{{ end }}
+						</div>
+					</div>
+					<div class="uk-form-row">
+						<label class="uk-form-label">Description</label>
+						<div class="uk-form-controls">
+							<input type="text" name="Description" value="{{ .Form.Description }}" >
+						</div>
+					</div>
+					<div class="uk-form-row">
+						<label class="uk-form-label">Destination</label>
+						<div class="uk-form-controls">
+							<input type="url" name="Destination" value="{{ .Form.Destination }}" required>
+						</div>
+					</div>
+					<div class="uk-form-row">
+						<label class="uk-form-label">Autostart</label>
+						<div class="uk-form-controls">
+							<input type="checkbox" name="Autostart" {{ if .Form.Autostart }} checked {{ end }} >
+						</div>
+					</div>
+				</fieldset>
+				<fieldset data-uk-margin>
+					<legend>Local address</legend>
+					<div class="uk-form-row">
+						<label class="uk-form-label">HTTP Address</label>
+						<div class="uk-form-controls">
+							<input type="text" name="HTTPAddress" value="{{ .Form.HTTPAddress }}" >
+						</div>
+					</div>
+					<div class="uk-form-row">
+						<label class="uk-form-label">HTTPS Address</label>
+						<div class="uk-form-controls">
+							<input type="text" name="HTTPSAddress" value="{{ .Form.HTTPSAddress }}" >
+						</div>
+					</div>
+					<div class="uk-form-row">
+						<label class="uk-form-label">SSLCert</label>
+						<div class="uk-form-controls">
+							<input type="text" name="SslCert" value="{{ .Form.SslCert }}" >
+						</div>
+					</div>
+					<div class="uk-form-row">
+						<label class="uk-form-label">SSLKey</label>
+						<div class="uk-form-controls">
+							<input type="text" name="SslKey" value="{{ .Form.SslKey }}" >
+						</div>
+					</div>
+				</fieldset>
+			</li>
+			<li>
+				<fieldset data-uk-margin>
+					<legend>Authorized users</legend>
+					{{ $form := .Form }}
+					{{ range .AllUsers }}
+					<p>
+					<label>
+						<input type="checkbox" name="Users" value="{{ .Login }}" {{ if $form.HasUser .Login }} checked {{ end }}>
+						{{ .Name }} ({{ .Login }})
+					</label>
+					</p>
+					{{ end }}
+				</fieldset>
+			</li>
+		 </ul>
+		 <input type="hidden" name="BasePageContext.CsrfToken" id="" value="{{ .CsrfToken }}" />
+		 <input type="hidden" name="_method" value="" id="form-method" />
+		 <div class="uk-form-row">
+			 <a href="/endpoints/" class="uk-button">Cancel</a>
+			 <button type="submit" class="uk-button uk-button-primary">Save</button>
+		 </div>
+	</form>
 </div>
 {{ end }}
 

@@ -20,22 +20,20 @@
 		{{ range .Endpoints }}
 		<tr>
 			<td>{{ .Name }}</td>
+			{{ if .Running }}
 			<td>
-				{{ if .Running }}
 				<div class="uk-badge uk-badge-success">running</div>
-				{{ else }}
-				<div class="uk-badge">stopped</div>
-				{{ end }}
+				<a href="/endpoints/{{ .Name }}/stop">Stop</a>
 			</td>
+			{{ else }}
+			<td>
+				<div class="uk-badge">stopped</div>
+				<a href="/endpoints/{{ .Name }}/start">Start</a>
+			</td>
+			{{ end }}
 			<td>{{ .Local }}</td>
 			<td>{{ .Remote }}</td>
-			<td><a href="/endpoints/{{ .Name }}">Edit</a>
-				{{ if .Running }}
-				<a href="/endpoints/{{ .Name }}/stop">Stop</a>
-				{{ else }}
-				<a href="/endpoints/{{ .Name }}/start">Start</a>
-				{{ end }}
-			</td>
+			<td><a href="/endpoints/{{ .Name }}">Edit</a></td>
 		</tr>
 		{{ end }}
 	</tbody>

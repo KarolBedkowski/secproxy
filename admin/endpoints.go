@@ -11,9 +11,9 @@ import (
 // Init - Initialize application
 func InitEndpointsHandlers(globals *config.Globals, parentRotuer *mux.Route) {
 	router := parentRotuer.Subrouter()
-	router.HandleFunc("/", ContextHandler(endpointsPageHandler, globals))
-	router.HandleFunc("/{name}", ContextHandler(endpointPageHandler, globals))
-	router.HandleFunc("/{name}/{action}", ContextHandler(endpointActionPageHandler, globals))
+	router.HandleFunc("/", SecurityContextHandler(endpointsPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/{name}", SecurityContextHandler(endpointPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/{name}/{action}", SecurityContextHandler(endpointActionPageHandler, globals, "ADMIN"))
 }
 
 type endpoint struct {
@@ -55,13 +55,24 @@ func (f *endpointForm) Validate(globals *config.Globals, newEp bool) (errors map
 	return
 }
 
+func (f *endpointForm) HasUser(name string) bool {
+	for _, u := range f.EndpointConf.Users {
+		if u == name {
+			return true
+		}
+	}
+	return false
+}
+
 func endpointPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
 	vars := mux.Vars(r)
 	ctx := &struct {
 		*BasePageContext
-		Form endpointForm
+		Form     endpointForm
+		AllUsers []config.User
 	}{
 		BasePageContext: bctx,
+		AllUsers:        bctx.Globals.Users.Users,
 	}
 	if r.Method == "POST" && r.FormValue("_method") != "" {
 		r.Method = r.FormValue("_method")

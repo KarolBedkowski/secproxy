@@ -2,7 +2,7 @@
 login="k"
 name="k"
 password="$2a$10$S/lJTS/zWzk7Sptl7v6W0eFhWp.d2rn7ccPMhobCqTGigZwlNHtKC"
-role="ADMIN"
+role="USER"
 [[users]]
 login="admin"
 name="admin"
