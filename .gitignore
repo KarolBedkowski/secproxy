@@ -2,3 +2,7 @@ secproxy
 *.log
 tags
 resources
+*.toml
+build
+*.pem
+*.cert

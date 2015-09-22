@@ -113,10 +113,9 @@ func userPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 	RenderTemplateStd(w, ctx, "users/user.tmpl")
 }
 
-
 type (
 	chpassForm struct {
-		CurrentPass	string
+		CurrentPass  string
 		NewPassword  string
 		NewPasswordC string
 		Errors       map[string]string `schema:"-"`
@@ -126,7 +125,7 @@ type (
 func chpassPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
 	ctx := &struct {
 		*BasePageContext
-		Form     chpassForm
+		Form chpassForm
 	}{
 		BasePageContext: bctx,
 	}
@@ -147,12 +146,12 @@ func chpassPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCon
 		}
 
 		user := bctx.Globals.GetUser(suser.Login)
-		if  user == nil {
+		if user == nil {
 			l.Error("admin.chpassPageHandler user not found ", suser.Login)
 			http.Error(w, "Bad user", http.StatusBadRequest)
 			return
 		}
-		
+
 		ctx.Form.Errors = make(map[string]string)
 		if !user.CheckPassword(ctx.Form.CurrentPass) {
 			ctx.Form.Errors["CurrentPass"] = "Wrong password"
@@ -172,4 +171,3 @@ func chpassPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCon
 	ctx.Save()
 	RenderTemplateStd(w, ctx, "users/chpass.tmpl")
 }
-
