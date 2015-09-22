@@ -12,7 +12,7 @@
 				<li class="uk-active">
 					<fieldset data-uk-margin>
 						{{ $nameError := .Form.Errors.Name }}
-						<div class="uk-form-row {{ if $nameError }} error {{ end }}">
+						<div class="uk-form-row {{ if $nameError }} uk-form-danger {{ end }}">
 							<label class="uk-form-label">Name</label>
 							<div class="uk-form-controls">
 								<input type="text" name="Name" value="{{ .Form.Name }}" required maxlength="15" {{ if ne .Form.Name "" }}readonly{{ end }} class="uk-width-1-1">
@@ -22,13 +22,15 @@
 						<div class="uk-form-row">
 							<label class="uk-form-label">Description</label>
 							<div class="uk-form-controls">
-								<input type="text" name="Description" value="{{ .Form.Description }}"  class="uk-width-1-1">
+								<textarea name="Description" class="uk-width-1-1">{{ .Form.Description }}</textarea>
 							</div>
 						</div>
-						<div class="uk-form-row">
+						{{ $destError := .Form.Errors.Destination }}
+						<div class="uk-form-row {{ if $destError }} uk-form-danger {{ end }}">
 							<label class="uk-form-label">Destination</label>
 							<div class="uk-form-controls">
 								<input type="url" name="Destination" value="{{ .Form.Destination }}" required class="uk-width-1-1">
+								{{ with $destError }}<label class="error">{{ . }}</label>{{ end }}
 							</div>
 						</div>
 						<div class="uk-form-row">
@@ -41,28 +43,36 @@
 					<br/>
 					<fieldset data-uk-margin>
 						<legend>Local address</legend>
-						<div class="uk-form-row">
+						{{ $httpError := .Form.Errors.HTTPAddress }}
+						<div class="uk-form-row {{ if $httpError }} uk-form-danger {{ end }}">
 							<label class="uk-form-label">HTTP Address</label>
 							<div class="uk-form-controls">
 								<input type="text" name="HTTPAddress" value="{{ .Form.HTTPAddress }}"  class="uk-width-1-1">
+								{{ with $httpError }}<label class="error">{{ . }}</label>{{ end }}
 							</div>
 						</div>
-						<div class="uk-form-row">
+						{{ $httpsError := .Form.Errors.HTTPSAddress }}
+						<div class="uk-form-row {{ if $httpsError }} uk-form-danger {{ end }}">
 							<label class="uk-form-label">HTTPS Address</label>
 							<div class="uk-form-controls">
-								<input type="text" name="HTTPSAddress" value="{{ .Form.HTTPSAddress }}"  class="uk-width-1-1">
+								<input type="text" name="HTTPSAddress" value="{{ .Form.HTTPSAddress }}"  class="uk-width-1-1" id="HTTPSAddress">
+								{{ with $httpsError }}<label class="error">{{ . }}</label>{{ end }}
 							</div>
 						</div>
-						<div class="uk-form-row">
+						{{ $sslcertError := .Form.Errors.SslCert }}
+						<div class="uk-form-row {{ if $sslcertError }} uk-form-danger {{ end }}">
 							<label class="uk-form-label">SSLCert</label>
 							<div class="uk-form-controls">
 								<input type="text" name="SslCert" value="{{ .Form.SslCert }}"  class="uk-width-1-1">
+								{{ with $sslcertError }}<label class="error">{{ . }}</label>{{ end }}
 							</div>
 						</div>
-						<div class="uk-form-row">
+						{{ $sslkeyError := .Form.Errors.SslKey }}
+						<div class="uk-form-row {{ if $sslkeyError }} uk-form-danger {{ end }}">
 							<label class="uk-form-label">SSLKey</label>
 							<div class="uk-form-controls">
 								<input type="text" name="SslKey" value="{{ .Form.SslKey }}"  class="uk-width-1-1">
+								{{ with $sslkeyError }}<label class="error">{{ . }}</label>{{ end }}
 							</div>
 						</div>
 					</fieldset>
@@ -104,8 +114,22 @@
 $(function() {
 	$("#form").validate({
 		rules: {
-			NewPasswordC: {equalTo: "#NewPassword"},
-		}
+			SslKey: {
+				required: {
+					depends: function(element) {
+						return $("#HTTPSAddress").is(":filled");
+					}
+				}
+			},
+			SslCert: {
+				required: {
+					depends: function(element) {
+						return $("#HTTPSAddress").is(":filled");
+					}
+				}
+			}
+		},
+		errorClass: "uk-form-danger",
 	});
 	$("#btn-delete").on("click", function (){
 		UIkit.modal.confirm("Delete endpoint?", function(){
