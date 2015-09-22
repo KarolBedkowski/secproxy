@@ -21,6 +21,7 @@
 		<div class="uk-container uk-width-1-1 uk-container-center uk-margin-top uk-margin-large-bottom">
 			<div class="uk-grid" data-uk-grid-margin>
 				<div class="tm-sidebar uk-width-1-5">
+					<div data-uk-sticky="{top:30}">
 					<div class="uk-panel uk-panel-box">
 						<ul class="tm-nav uk-nav uk-nav-side" data-uk-nav>
 							<li class="uk-nav-header">Endpoints</li>
@@ -37,6 +38,7 @@
 							<li><a href="/logout">Logout</a></li>
 						</ul>
 					</div>
+					</div>
 				</div>
 				<div class="tm-main uk-width-4-5">
 					<main>
@@ -51,6 +53,7 @@
 	<script src="/static/js/jquery.js" type="text/javascript" ></script>
 	<script src="/static/js/jquery.validate.js" type="text/javascript" ></script>
 	<script src="/static/js/uikit/uikit.js"></script>
+	<script src="/static/js/uikit/components/sticky.js"></script>
 	<script type="text/javascript" charset="utf-8">
 		$(function() {
 			$('.message .close').on('click', function() {
