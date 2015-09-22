@@ -3,6 +3,7 @@ package common
 import (
 	"k.prv/rpimon/helpers/logging"
 	nurl "net/url"
+	"os"
 )
 
 // BuildQuery format url query part from pairs key, val
@@ -20,4 +21,12 @@ func BuildQuery(pairs ...string) (query string) {
 		query += pairs[idx] + "=" + nurl.QueryEscape(pairs[idx+1])
 	}
 	return
+}
+
+func FileExists(path string) (exists bool) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	return !os.IsNotExist(err)
 }

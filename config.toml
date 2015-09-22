@@ -1,6 +1,6 @@
 
-EndpointsFilename = "endpoints.toml"
-UsersFilename = "users.toml"
+EndpointsFilename = "endpoints.kvdb"
+UsersFilename = "users.kvdb"
 
 [AdminPanel]
 	StaticDir = "./static"
@@ -9,7 +9,7 @@ UsersFilename = "users.toml"
 	CookieEncKey = "12345678901234567890123456789012"
 	SessionStoreDir = "./temp"
 	HTTPAddress = ":8000"
-	HTTPSAddress = ""
-	SslCert = "key.pem"
-	SslKey = "cert.pem"
+	HTTPSAddress = ":8443"
+	SslCert = "cert.pem"
+	SslKey = "key.pem"
 

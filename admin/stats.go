@@ -28,7 +28,7 @@ func statsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 	stats = expvar.Get("counters").(*expvar.Map)
 	servStat := expvar.Get("states").(*expvar.Map)
 
-	for _, ep := range bctx.Globals.Endpoints.Endpoints {
+	for _, ep := range bctx.Globals.GetEndpoints() {
 		epname := ep.Name
 		all := stats.Get(epname)
 		success := stats.Get(epname + "-pass")

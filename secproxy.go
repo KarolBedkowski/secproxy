@@ -12,6 +12,9 @@ import (
 	// _ "net/http/pprof" // /debug/pprof/
 	"runtime"
 	//"time"
+	    "os/signal"
+    "syscall"
+    "os"
 )
 
 // http://localhost:8000/debug/vars
@@ -29,6 +32,20 @@ func main() {
 
 	globals := config.NewGlobals(*configFilename, *debug)
 
+	defer func() {
+		if e := recover(); e != nil {
+			globals.Close()
+		}
+	}()
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+    signal.Notify(c, syscall.SIGTERM)
+	go func(){
+		<- c
+		globals.Close()
+	}()
+
 	log.Info("Debug=", globals.Debug)
 
 	if !globals.Debug {
@@ -45,7 +62,7 @@ func main() {
 	server.Init(globals)
 
 	log.Info("Autostarting...")
-	for _, ep := range globals.Endpoints.Endpoints {
+	for _, ep := range globals.GetEndpoints() {
 		if ep.Autostart {
 			log.Debug("Starting ", ep.Name)
 			server.StartEndpoint(ep.Name, globals)

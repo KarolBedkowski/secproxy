@@ -17,8 +17,8 @@ func InitUsersHandlers(globals *config.Globals, parentRotuer *mux.Route) {
 func usersPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
 	ctx := &struct {
 		*BasePageContext
-		Users []config.User
-	}{bctx, bctx.Globals.Users.Users}
+		Users []*config.User
+	}{bctx, bctx.Globals.GetUsers()}
 	RenderTemplateStd(w, ctx, "users/index.tmpl")
 }
 

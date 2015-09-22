@@ -32,7 +32,7 @@ func endpointsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePage
 	}{
 		BasePageContext: bctx,
 	}
-	for _, ep := range bctx.Globals.Endpoints.Endpoints {
+	for _, ep := range bctx.Globals.GetEndpoints() {
 		ctx.Endpoints = append(ctx.Endpoints,
 			&endpoint{
 				ep.Name,
@@ -71,10 +71,10 @@ func endpointPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 	ctx := &struct {
 		*BasePageContext
 		Form     endpointForm
-		AllUsers []config.User
+		AllUsers []*config.User
 	}{
 		BasePageContext: bctx,
-		AllUsers:        bctx.Globals.Users.Users,
+		AllUsers:        bctx.Globals.GetUsers(),
 	}
 	if r.Method == "POST" && r.FormValue("_method") != "" {
 		r.Method = r.FormValue("_method")
