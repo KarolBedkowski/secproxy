@@ -37,11 +37,15 @@ func NewGlobals(confFilename string, debug int) *Globals {
 
 func (g *Globals) ReloadConfig() {
 	log.Info("Globals.ReloadConfig from ", g.confFilename)
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	g.Config, _ = LoadConfiguration(g.confFilename)
 	log.Info("Globals.ReloadConfig from ", g.confFilename, " DONE")
 }
 
 func (g *Globals) GetUser(login string) (u *User) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
 	for _, usr := range g.Users.Users {
 		if usr.Login == login {
 			return &usr
@@ -51,6 +55,8 @@ func (g *Globals) GetUser(login string) (u *User) {
 }
 
 func (g *Globals) SaveUser(u *User) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	for idx, usr := range g.Users.Users {
 		if usr.Login == u.Login {
 			g.Users.Users[idx] = *u
@@ -63,6 +69,8 @@ func (g *Globals) SaveUser(u *User) {
 }
 
 func (g *Globals) GetEndpoint(name string) (e *EndpointConf) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
 	for _, ep := range g.Endpoints.Endpoints {
 		if ep.Name == name {
 			return &ep
@@ -72,6 +80,8 @@ func (g *Globals) GetEndpoint(name string) (e *EndpointConf) {
 }
 
 func (g *Globals) SaveEndpoint(e *EndpointConf) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	for idx, ep := range g.Endpoints.Endpoints {
 		if ep.Name == e.Name {
 			g.Endpoints.Endpoints[idx] = *e
@@ -84,10 +94,12 @@ func (g *Globals) SaveEndpoint(e *EndpointConf) {
 }
 
 func (g *Globals) DeleteEndpoint(name string) (ok bool) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	for idx, ep := range g.Endpoints.Endpoints {
 		if ep.Name == name {
 			g.Endpoints.Endpoints = append(g.Endpoints.Endpoints[:idx],
-			g.Endpoints.Endpoints[idx+1:]...)
+				g.Endpoints.Endpoints[idx+1:]...)
 			g.Endpoints.Save(g.Config.EndpointsFilename)
 			return true
 		}
