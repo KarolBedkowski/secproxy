@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/tls"
 	"expvar"
 	"k.prv/secproxy/common"
 	"k.prv/secproxy/config"
@@ -9,13 +10,16 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"sync"
 	"time"
 )
 
 type (
 	state struct {
-		running     bool
-		serverClose chan bool
+		running        bool
+		runningSSL     bool
+		serverClose    chan bool
+		serverSSLClose chan bool
 	}
 
 	varState string
@@ -29,33 +33,43 @@ var (
 	states   map[string]*state = make(map[string]*state)
 	counters                   = expvar.NewMap("counters")
 	servStat                   = expvar.NewMap("states")
+	mu       sync.RWMutex
 )
 
 func Init(globals *config.Globals) {
 }
 
-func StartEndpoint(name string, globals *config.Globals) (errstr string) {
+func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 	l.Info("server.StartEndpoint starting ", name)
-	if st, ok := states[name]; ok {
-		if st.running {
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	var st *state
+	var ok bool
+	if st, ok = states[name]; ok && st != nil {
+		if st.running || st.runningSSL {
 			l.Warn("server.StartEndpoint already started ", name)
-			return "already running"
+			return []string{"already running"}
 		}
+	}
+	if st == nil {
+		st = &state{
+			serverClose:    make(chan bool),
+			serverSSLClose: make(chan bool),
+		}
+		states[name] = st
 	}
 
 	servStat.Set(name, varState("stopped"))
 	conf := globals.GetEndpoint(name)
 	if conf == nil {
-		return "invalid endpoint"
+		return []string{"invalid endpoint"}
 	}
 	uri, err := url.Parse(conf.Destination)
 	if err != nil {
-		return "invalid url"
+		return []string{"invalid url"}
 	}
-	st := &state{
-		serverClose: make(chan bool),
-	}
-	states[name] = st
 
 	var handler http.Handler
 
@@ -66,40 +80,104 @@ func StartEndpoint(name string, globals *config.Globals) (errstr string) {
 	handler = counterMw(handler, name)
 	handler = common.LogHandler(handler)
 
-	s := &http.Server{
-		Addr:         conf.HTTPAddress,
-		Handler:      handler,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-	}
-	ls, e := net.Listen("tcp", conf.HTTPAddress)
-	if e != nil {
-		return "listen error " + e.Error()
-	}
-	go func() {
-		st.running = true
-		go s.Serve(ls)
-		servStat.Set(name, varState("running"))
-		select {
-		case <-st.serverClose:
-			l.Info("server.StartEndpoint stop ", name)
-			ls.Close()
-			st.running = false
-			servStat.Set(name, varState("stopped"))
-			return
+	if conf.HTTPAddress != "" {
+		l.Info("server.StartEndpoint starting http ", name)
+		s := &http.Server{
+			Addr:         conf.HTTPAddress,
+			Handler:      handler,
+			ReadTimeout:  10 * time.Second,
+			WriteTimeout: 10 * time.Second,
 		}
-	}()
-	return ""
+		ls, e := net.Listen("tcp", conf.HTTPAddress)
+		if e != nil {
+			l.Error("server.StartEndpoint starting http listen error ", e)
+			errstr = append(errstr, "starting http error "+e.Error())
+		} else {
+			go func() {
+				st.running = true
+				go s.Serve(ls)
+				servStat.Set(name, varState("running"))
+				select {
+				case <-st.serverClose:
+					l.Info("server.StartEndpoint stop http ", name)
+					ls.Close()
+					st.running = false
+					servStat.Set(name, varState("stopped"))
+					return
+				}
+			}()
+		}
+	}
+
+	if conf.HTTPSAddress != "" {
+		l.Info("server.StartEndpoint starting https ", name)
+		s := &http.Server{
+			Addr:         conf.HTTPSAddress,
+			Handler:      handler,
+			ReadTimeout:  10 * time.Second,
+			WriteTimeout: 10 * time.Second,
+		}
+		config := &tls.Config{}
+		if config.NextProtos == nil {
+			config.NextProtos = []string{"http/1.1"}
+		}
+
+		var err error
+		config.Certificates = make([]tls.Certificate, 1)
+		config.Certificates[0], err = tls.LoadX509KeyPair(conf.SslCert, conf.SslKey)
+		if err != nil {
+			l.Error("server.StartEndpoint starting https cert error ", err)
+			errstr = append(errstr, "starting https - cert error "+err.Error())
+		} else {
+			ln, err := net.Listen("tcp", conf.HTTPSAddress)
+			if err != nil {
+				l.Error("server.StartEndpoint starting https listen error ", err)
+				errstr = append(errstr, "starting https error "+err.Error())
+			} else {
+				tlsListener := tls.NewListener(ln, config)
+				go func() {
+					st.runningSSL = true
+					go s.Serve(tlsListener)
+					servStat.Set(name+"-ssl", varState("running"))
+					select {
+					case <-st.serverSSLClose:
+						l.Info("server.StartEndpoint stop https ", name)
+						ln.Close()
+						st.runningSSL = false
+						servStat.Set(name, varState("stopped"))
+						return
+					}
+				}()
+			}
+		}
+	}
+
+	return
 }
 
 func StopEndpoint(name string) {
 	l.Info("server.StopEndpoint ", name)
-	states[name].serverClose <- true
+	mu.RLock()
+	defer mu.RUnlock()
+	state, ok := states[name]
+	if !ok {
+		return
+	}
+	if state.running {
+		l.Debug("server.StopEndpoint stopping http ", name)
+		state.serverClose <- true
+	}
+	if state.runningSSL {
+		l.Debug("server.StopEndpoint stopping https ", name)
+		state.serverSSLClose <- true
+	}
 }
 
 func EndpointRunning(name string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
 	if st, ok := states[name]; ok {
-		return st.running
+		return st.running || st.runningSSL
 	}
 	return false
 }

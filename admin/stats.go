@@ -12,6 +12,7 @@ type stat struct {
 	Unauthorized interface{}
 	All          interface{}
 	Status       interface{}
+	StatusSSL    interface{}
 }
 
 func statsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
@@ -34,7 +35,8 @@ func statsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 		unauth := stats.Get(epname + "-401")
 		fail := stats.Get(epname + "-403")
 		status := servStat.Get(epname)
-		ctx.Stats = append(ctx.Stats, &stat{epname, fail, success, unauth, all, status})
+		statusSSL := servStat.Get(epname + "-ssl")
+		ctx.Stats = append(ctx.Stats, &stat{epname, fail, success, unauth, all, status, statusSSL})
 	}
 
 	RenderTemplateStd(w, ctx, "stats.tmpl")

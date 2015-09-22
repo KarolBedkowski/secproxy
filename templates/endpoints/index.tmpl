@@ -11,7 +11,8 @@
 		<tr>
 			<th>Name</th>
 			<th>Status</th>
-			<th>Local</th>
+			<th>Local HTTP</th>
+			<th>Local HTTPS</th>
 			<th>Remote</th>
 			<th>&nbsp;</th>
 		</tr>
@@ -32,6 +33,7 @@
 			</td>
 			{{ end }}
 			<td>{{ .Local }}</td>
+			<td>{{ .LocalHttps }}</td>
 			<td>{{ .Remote }}</td>
 			<td><a href="/endpoints/{{ .Name }}">Edit</a></td>
 		</tr>

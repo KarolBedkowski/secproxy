@@ -6,6 +6,7 @@ import (
 	l "k.prv/secproxy/logging"
 	"k.prv/secproxy/server"
 	"net/http"
+	"strings"
 )
 
 // Init - Initialize application
@@ -17,10 +18,11 @@ func InitEndpointsHandlers(globals *config.Globals, parentRotuer *mux.Route) {
 }
 
 type endpoint struct {
-	Name    string
-	Running bool
-	Local   string
-	Remote  string
+	Name       string
+	Running    bool
+	Local      string
+	LocalHttps string
+	Remote     string
 }
 
 func endpointsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
@@ -35,7 +37,8 @@ func endpointsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePage
 			&endpoint{
 				ep.Name,
 				server.EndpointRunning(ep.Name),
-				ep.HTTPAddress + " " + ep.HTTPSAddress,
+				ep.HTTPAddress,
+				ep.HTTPSAddress,
 				ep.Destination,
 			})
 	}
@@ -137,16 +140,16 @@ func endpointActionPageHandler(w http.ResponseWriter, r *http.Request, bctx *Bas
 	switch action {
 	case "start":
 		err := server.StartEndpoint(epname, bctx.Globals)
-		if err == "" {
+		if len(err) == 0 {
 			bctx.AddFlashMessage("Endpoint started", "success")
 		} else {
-			bctx.AddFlashMessage("Endpoint failed to start: "+err, "error")
+			bctx.AddFlashMessage("Endpoint failed to start: "+strings.Join(err, ", "), "error")
 		}
-		break;
+		break
 	case "stop":
 		server.StopEndpoint(epname)
 		bctx.AddFlashMessage("Endpoint stopped", "success")
-		break;
+		break
 	case "delete":
 		server.StopEndpoint(epname)
 		bctx.Globals.DeleteEndpoint(epname)
