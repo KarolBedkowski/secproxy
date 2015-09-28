@@ -60,4 +60,4 @@ deps:
 	go get -v github.com/jessevdk/go-assets-builder
 
 gofmt:
-	find . -type f -name '*.go' -print -exec gofmt -w=true {} ';'
+	find . -type f -name '*.go' -print -exec gofmt -s=true -w=true {} ';'
