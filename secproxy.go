@@ -32,7 +32,7 @@ func main() {
 
 	logging.Init(*logFilename, *debug > 0)
 
-	globals := config.NewGlobals(*configFilename, *debug)
+	globals := config.NewGlobals(*configFilename, *debug, *logFilename)
 
 	defer func() {
 		if e := recover(); e != nil {

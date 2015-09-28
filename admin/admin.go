@@ -25,6 +25,7 @@ func StartAdmin(globals *config.Globals) {
 	appRouter.HandleFunc("/chpass", SecurityContextHandler(chpassPageHandler, globals, ""))
 
 	appRouter.HandleFunc("/stats", ContextHandler(statsPageHandler, globals))
+	appRouter.HandleFunc("/logs", SecurityContextHandler(logsPageHandler, globals, "ADMIN"))
 
 	InitUsersHandlers(globals, appRouter.PathPrefix("/users"))
 	InitEndpointsHandlers(globals, appRouter.PathPrefix("/endpoints"))

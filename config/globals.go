@@ -16,6 +16,7 @@ type (
 		Debug        bool
 		Config       *AppConfiguration
 		confFilename string
+		LogFilename  string
 
 		db *kv.DB
 
@@ -28,10 +29,11 @@ var (
 	endpointPrefix = []byte("E_")
 )
 
-func NewGlobals(confFilename string, debug int) *Globals {
+func NewGlobals(confFilename string, debug int, logFilename string) *Globals {
 	globals := &Globals{}
 	globals.confFilename = confFilename
 	globals.Debug = debug > 0
+	globals.LogFilename = logFilename
 	globals.ReloadConfig()
 	return globals
 }

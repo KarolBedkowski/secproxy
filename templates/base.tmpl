@@ -32,6 +32,7 @@
 							{{ if $ctx.HasUserRole "ADMIN" }}
 							<li class="uk-nav-header">Admin</li>
 							<li{{ if $ctx.URLStartsWith "/users" }} class="uk-active" {{ end }} ><a href="/users/">Users</a></li>
+							<li{{ if $ctx.URLStartsWith "/logs" }} class="uk-active" {{ end }} ><a href="/logs">Logs</a></li>
 							{{ end }}
 							<li class="uk-nav-header"></li>
 							<li {{ if $ctx.URLStartsWith "/chpass" }} class="uk-active" {{ end }}><a href="/chpass">Change pass.</a></li>
