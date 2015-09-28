@@ -12,9 +12,9 @@ import (
 	// _ "net/http/pprof" // /debug/pprof/
 	"runtime"
 	//"time"
-	    "os/signal"
-    "syscall"
-    "os"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 // http://localhost:8000/debug/vars
@@ -40,10 +40,11 @@ func main() {
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
-    signal.Notify(c, syscall.SIGTERM)
-	go func(){
-		<- c
+	signal.Notify(c, syscall.SIGTERM)
+	go func() {
+		<-c
 		globals.Close()
+		os.Exit(-1)
 	}()
 
 	log.Info("Debug=", globals.Debug)
