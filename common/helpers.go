@@ -30,3 +30,11 @@ func FileExists(path string) (exists bool) {
 	}
 	return !os.IsNotExist(err)
 }
+
+func DirExists(path string) (exists bool) {
+	stat, err := os.Stat(path)
+	if err == nil {
+		return stat.IsDir()
+	}
+	return false
+}

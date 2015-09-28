@@ -59,11 +59,18 @@
 								{{ with $httpsError }}<label class="error">{{ . }}</label>{{ end }}
 							</div>
 						</div>
+						{{ $form := .Form }}
 						{{ $sslcertError := .Form.Errors.SslCert }}
 						<div class="uk-form-row {{ if $sslcertError }} uk-form-danger {{ end }}">
 							<label class="uk-form-label">SSLCert</label>
 							<div class="uk-form-controls">
-								<input type="text" name="SslCert" value="{{ .Form.SslCert }}"  class="uk-width-1-1">
+								<select name="SslCert" class="uk-form-select uk-width-1-1" data-uk-form-select>
+									<option value=""></option>
+									{{ range $c := .Certs }}
+									<option value="{{ $c }}" {{ if eq $c $form.SslCert }}selected{{ end }} >{{ $c }}</option>
+									{{ end }}
+								</select>
+								<!--  <input type="text" name="SslCert" value="{{ .Form.SslCert }}"  class="uk-width-1-1"> -->
 								{{ with $sslcertError }}<label class="error">{{ . }}</label>{{ end }}
 							</div>
 						</div>
@@ -71,7 +78,13 @@
 						<div class="uk-form-row {{ if $sslkeyError }} uk-form-danger {{ end }}">
 							<label class="uk-form-label">SSLKey</label>
 							<div class="uk-form-controls">
-								<input type="text" name="SslKey" value="{{ .Form.SslKey }}"  class="uk-width-1-1">
+								<select name="SslKey" class="uk-form-select uk-width-1-1" data-uk-form-select>
+									<option value=""></option>
+									{{ range $c := .Certs }}
+									<option value="{{ $c }}" {{ if eq $c $form.SslKey }}selected{{ end }} >{{ $c }}</option>
+									{{ end }}
+								</select>
+								<!--<input type="text" name="SslKey" value="{{ .Form.SslKey }}"  class="uk-width-1-1">-->
 								{{ with $sslkeyError }}<label class="error">{{ . }}</label>{{ end }}
 							</div>
 						</div>

@@ -6,6 +6,8 @@ import (
 	"github.com/cznic/kv"
 	"io"
 	"k.prv/secproxy/common"
+	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -221,5 +223,20 @@ func (g *Globals) GetEndpoints() (eps []*EndpointConf) {
 			log.Error("GetUsers next error", "err", err)
 		}
 	}
+	return
+}
+
+func (g *Globals) FindCerts() (names []string) {
+	filepath.Walk(g.Config.CertsDir,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				log.Error("globals.FindCerts error", "err", err, "path", g.Config.CertsDir)
+				return err
+			}
+			if !info.IsDir() {
+				names = append(names, path)
+			}
+			return nil
+		})
 	return
 }

@@ -1,5 +1,6 @@
 
 DBFilename = "database.kvdb"
+CertsDir = "./certs"
 
 [AdminPanel]
 	StaticDir = "./static"
@@ -9,6 +10,6 @@ DBFilename = "database.kvdb"
 	SessionStoreDir = "./temp"
 	HTTPAddress = ":8000"
 	HTTPSAddress = ":8443"
-	SslCert = "cert.pem"
-	SslKey = "key.pem"
+	SslCert = "./certs/cert.pem"
+	SslKey = "./certs/key.pem"
 

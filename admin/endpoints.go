@@ -74,9 +74,11 @@ func endpointPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 		*BasePageContext
 		Form     endpointForm
 		AllUsers []*config.User
+		Certs    []string
 	}{
 		BasePageContext: bctx,
 		AllUsers:        bctx.Globals.GetUsers(),
+		Certs:           bctx.Globals.FindCerts(),
 	}
 	if r.Method == "POST" && r.FormValue("_method") != "" {
 		r.Method = r.FormValue("_method")

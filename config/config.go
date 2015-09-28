@@ -3,7 +3,9 @@ package config
 import (
 	"github.com/naoina/toml"
 	"io/ioutil"
+	"k.prv/secproxy/common"
 	"k.prv/secproxy/logging"
+	"os"
 )
 
 var (
@@ -27,6 +29,7 @@ type (
 	// AppConfiguration Main app configuration.
 	AppConfiguration struct {
 		DBFilename string
+		CertsDir   string
 
 		AdminPanel AdminPanelConf
 	}
@@ -47,6 +50,15 @@ func LoadConfiguration(filename string) (conf *AppConfiguration, err error) {
 		log.Error("config.LoadConfiguration", "filename", filename, "err", err)
 	}
 	conf.validate()
+
+	if !common.DirExists(conf.CertsDir) {
+		log.Info("config.LoadConfiguration dir for certs not exists - creating", "path", conf.CertsDir)
+		if err := os.MkdirAll(conf.CertsDir, 600); err != nil {
+			log.Crit("config.LoadConfiguration creating dir for certs failed",
+				"path", conf.CertsDir, "err", err)
+		}
+	}
+
 	return
 }
 
@@ -58,7 +70,7 @@ func (ac *AppConfiguration) SaveConfiguration(filename string) error {
 		log.Error("config.SaveConfiguration Marshal", "filename", filename, "err", err, "conf", ac)
 		return err
 	}
-	err = ioutil.WriteFile(filename, data, 0600)
+	err = ioutil.WriteFile(filename, data, 0700)
 	if err != nil {
 		log.Error("config.SaveConfiguration", "filename", filename, "err", err)
 	}
@@ -75,6 +87,7 @@ func (ac *AppConfiguration) loadDefaults() {
 	ac.AdminPanel.HTTPSAddress = ""
 	ac.AdminPanel.SslCert = "key.pem"
 	ac.AdminPanel.SslKey = "cert.pem"
+	ac.CertsDir = "./certs"
 }
 
 func (ac *AppConfiguration) validate() bool {
