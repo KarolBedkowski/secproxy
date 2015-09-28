@@ -4,7 +4,7 @@ import (
 	"flag"
 	"k.prv/secproxy/admin"
 	"k.prv/secproxy/config"
-	log "k.prv/secproxy/logging"
+	"k.prv/secproxy/logging"
 	"k.prv/secproxy/resources"
 	"k.prv/secproxy/server"
 	//	"k.prv/secproxy/admin"
@@ -20,7 +20,9 @@ import (
 // http://localhost:8000/debug/vars
 
 func main() {
-	log.Info("Starting... ver %s", config.AppVersion)
+	log := logging.NewLogger("main")
+
+	log.Info("Starting... ", "ver", config.AppVersion)
 	configFilename := flag.String("config", "./config.toml", "Configuration filename")
 	debug := flag.Int("debug", 1, "Run in debug mode (1) or normal (0)")
 	forceLocalFiles := flag.Bool("forceLocalFiles", false, "Force use local files instead of embended assets")
@@ -28,7 +30,7 @@ func main() {
 	logFilename := flag.String("log", "./secproxy.log", "Log file name")
 	flag.Parse()
 
-	log.Init(*logFilename, *debug > 0)
+	logging.Init(*logFilename, *debug > 0)
 
 	globals := config.NewGlobals(*configFilename, *debug)
 
@@ -47,7 +49,7 @@ func main() {
 		os.Exit(-1)
 	}()
 
-	log.Info("Debug=", globals.Debug)
+	log.Info("Starting ...", "Debug", globals.Debug)
 
 	if !globals.Debug {
 		log.Info("NumCPU: %d", runtime.NumCPU())
@@ -65,7 +67,7 @@ func main() {
 	log.Info("Autostarting...")
 	for _, ep := range globals.GetEndpoints() {
 		if ep.Autostart {
-			log.Debug("Starting ", ep.Name)
+			log.Debug("Starting endpoint", "endpoint", ep.Name)
 			server.StartEndpoint(ep.Name, globals)
 		}
 	}

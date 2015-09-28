@@ -3,10 +3,13 @@ package config
 import (
 	"github.com/naoina/toml"
 	"io/ioutil"
-	log "k.prv/secproxy/logging"
+	"k.prv/secproxy/logging"
 )
 
-var AppVersion = "dev"
+var (
+	AppVersion = "dev"
+	log        = logging.NewLogger("config")
+)
 
 type (
 	AdminPanelConf struct {
@@ -31,7 +34,7 @@ type (
 
 // LoadConfiguration from given file
 func LoadConfiguration(filename string) (conf *AppConfiguration, err error) {
-	log.Info("config.LoadConfiguration: ", filename)
+	log.Info("config.LoadConfiguration", "filename", filename)
 	var content []byte
 	conf = &AppConfiguration{}
 	conf.loadDefaults()
@@ -41,7 +44,7 @@ func LoadConfiguration(filename string) (conf *AppConfiguration, err error) {
 			panic(err)
 		}
 	} else {
-		log.Error("config.LoadConfiguration: ", filename, err.Error())
+		log.Error("config.LoadConfiguration", "filename", filename, "err", err)
 	}
 	conf.validate()
 	return
@@ -49,15 +52,15 @@ func LoadConfiguration(filename string) (conf *AppConfiguration, err error) {
 
 // SaveConfiguration write current configuration to json file
 func (ac *AppConfiguration) SaveConfiguration(filename string) error {
-	log.Info("config.SaveConfiguration: ", filename)
+	log.Info("config.SaveConfiguration", "filename", filename)
 	data, err := toml.Marshal(ac)
 	if err != nil {
-		log.Error("config.SaveConfiguration Marshal ", filename, err.Error())
+		log.Error("config.SaveConfiguration Marshal", "filename", filename, "err", err, "conf", ac)
 		return err
 	}
 	err = ioutil.WriteFile(filename, data, 0600)
 	if err != nil {
-		log.Error("config.SaveConfiguration: ", filename, err.Error())
+		log.Error("config.SaveConfiguration", "filename", filename, "err", err)
 	}
 	return err
 }

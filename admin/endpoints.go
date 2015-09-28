@@ -3,11 +3,13 @@ package admin
 import (
 	"github.com/gorilla/mux"
 	"k.prv/secproxy/config"
-	l "k.prv/secproxy/logging"
+	"k.prv/secproxy/logging"
 	"k.prv/secproxy/server"
 	"net/http"
 	"strings"
 )
+
+var logEP = logging.NewLogger("admin.auth")
 
 // Init - Initialize application
 func InitEndpointsHandlers(globals *config.Globals, parentRotuer *mux.Route) {
@@ -81,7 +83,7 @@ func endpointPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 	}
 	epname, ok := vars["name"]
 	if !ok || epname == "" {
-		l.Error("admin.endpointPageHandler missing name")
+		logging.LogForRequest(logEP, r).Error("admin.endpointPageHandler missing name", "vars", vars)
 		http.Error(w, "Missing name", http.StatusBadRequest)
 		return
 	}
@@ -92,7 +94,7 @@ func endpointPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 		if ep := bctx.Globals.GetEndpoint(epname); ep != nil {
 			ctx.Form.EndpointConf = ep.Clone()
 		} else {
-			l.Error("admin.endpointPageHandler ep not found ", epname)
+			logging.LogForRequest(logEP, r).Error("admin.endpointPageHandler ep not found", "endpoint", epname)
 			http.Error(w, "Endpoint not found", http.StatusNotFound)
 			return
 		}
@@ -103,7 +105,7 @@ func endpointPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 	case "POST":
 		r.ParseForm()
 		if err := decoder.Decode(&ctx.Form, r.Form); err != nil {
-			l.Error("admin.endpointPageHandler decode form error ", err, r.Form)
+			logging.LogForRequest(logEP, r).Error("admin.endpointPageHandler decode form error", "err", err, "form", r.Form)
 			break
 		}
 		if errors := ctx.Form.Validate(bctx.Globals, newEp); len(errors) > 0 {
@@ -125,14 +127,14 @@ func endpointActionPageHandler(w http.ResponseWriter, r *http.Request, bctx *Bas
 	vars := mux.Vars(r)
 	epname, ok := vars["name"]
 	if !ok || epname == "" {
-		l.Error("admin.endpointActionPageHandler missing name")
+		logging.LogForRequest(logEP, r).Error("admin.endpointActionPageHandler missing name", "vars", vars)
 		http.Error(w, "Missing name", http.StatusBadRequest)
 		return
 	}
 
 	action, ok := vars["action"]
 	if !ok || action == "" {
-		l.Error("admin.endpointActionPageHandler missing action")
+		logging.LogForRequest(logEP, r).Error("admin.endpointActionPageHandler missing action", "vars", vars)
 		http.Error(w, "Missing action", http.StatusBadRequest)
 		return
 	}
@@ -156,7 +158,7 @@ func endpointActionPageHandler(w http.ResponseWriter, r *http.Request, bctx *Bas
 		bctx.AddFlashMessage("Endpoint deleted", "success")
 		break
 	default:
-		l.Warn("admin.endpointActionPageHandler invalid action: ", action)
+		logging.LogForRequest(logEP, r).Warn("admin.endpointActionPageHandler invalid action", "action", action)
 	}
 	bctx.Save()
 	http.Redirect(w, r, "/endpoints/", http.StatusFound)

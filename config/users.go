@@ -2,7 +2,6 @@ package config
 
 import (
 	"code.google.com/p/go.crypto/bcrypt"
-	log "k.prv/secproxy/logging"
 )
 
 type (
@@ -28,7 +27,7 @@ func (u *User) UpdatePassword(newPass string) {
 	} else {
 		data, err := bcrypt.GenerateFromPassword([]byte(newPass), bcrypt.DefaultCost)
 		if err != nil {
-			log.Error("UpdatePassword error ", u, err)
+			log.Error("UpdatePassword error", "user", u, "err", err)
 		} else {
 			u.Password = string(data)
 		}

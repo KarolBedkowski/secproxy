@@ -5,13 +5,14 @@ import (
 	"github.com/gorilla/schema"
 	"k.prv/secproxy/common"
 	"k.prv/secproxy/config"
-	log "k.prv/secproxy/logging"
+	"k.prv/secproxy/logging"
 	"net/http"
 )
 
 var (
 	appRouter = mux.NewRouter()
 	decoder   = schema.NewDecoder()
+	log       = logging.NewLogger("admin")
 )
 
 func StartAdmin(globals *config.Globals) {
@@ -35,12 +36,12 @@ func StartAdmin(globals *config.Globals) {
 	http.Handle("/", common.LogHandler(CsrfHandler(SessionHandler(appRouter))))
 
 	if globals.Config.AdminPanel.HTTPSAddress != "" {
-		log.Info("admin.StartAdmin Listen HTTPS: ", globals.Config.AdminPanel.HTTPSAddress)
+		log.Info("admin.StartAdmin Listen HTTPS ", "port", globals.Config.AdminPanel.HTTPSAddress)
 
 		sslserv := func() {
 			if err := http.ListenAndServeTLS(globals.Config.AdminPanel.HTTPSAddress,
 				globals.Config.AdminPanel.SslCert, globals.Config.AdminPanel.SslKey, nil); err != nil {
-				log.Error("admin.StartAdmin Error listening https, ", err)
+				log.Error("admin.StartAdmin Error listening https, ", "err", err)
 			}
 		}
 
@@ -52,9 +53,9 @@ func StartAdmin(globals *config.Globals) {
 	}
 
 	if globals.Config.AdminPanel.HTTPAddress != "" {
-		log.Info("admin.StartAdmin Listen: ", globals.Config.AdminPanel.HTTPAddress)
+		log.Info("admin.StartAdmin Listen", "port", globals.Config.AdminPanel.HTTPAddress)
 		if err := http.ListenAndServe(globals.Config.AdminPanel.HTTPAddress, nil); err != nil {
-			log.Error("admin.StartAdmin Error listening http, ", err)
+			log.Error("admin.StartAdmin Error listening http, ", "err", err)
 		}
 	}
 }
@@ -68,12 +69,12 @@ func mainPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 func GetNamedURL(name string, pairs ...string) (url string) {
 	route := appRouter.Get(name)
 	if route == nil {
-		log.Error("GetNamedURL " + name + " error")
+		log.Error("GetNamedURL error", "name", name)
 		return ""
 	}
 	rurl, err := route.URL(pairs...)
 	if err != nil {
-		log.Error("GetNamedURL " + name + " error " + err.Error())
+		log.Error("GetNamedURL error", "name", name, "err", err.Error())
 		return ""
 	}
 	return rurl.String()

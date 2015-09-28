@@ -1,8 +1,6 @@
 package config
 
-import (
-//	log "k.prv/secproxy/logging"
-)
+import ()
 
 type (
 	EndpointConf struct {

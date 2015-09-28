@@ -6,7 +6,6 @@ import (
 	"github.com/cznic/kv"
 	"io"
 	"k.prv/secproxy/common"
-	log "k.prv/secproxy/logging"
 	"sync"
 )
 
@@ -48,7 +47,7 @@ func (g *Globals) Close() error {
 }
 
 func (g *Globals) ReloadConfig() {
-	log.Info("Globals.ReloadConfig from ", g.confFilename)
+	log.Info("Globals.ReloadConfig", "filename", g.confFilename)
 	g.Close()
 
 	g.mu.Lock()
@@ -62,7 +61,7 @@ func (g *Globals) ReloadConfig() {
 	}
 
 	g.openDatabases()
-	log.Info("Globals.ReloadConfig from ", g.confFilename, " DONE")
+	log.Info("Globals.ReloadConfig DONE", "filename", g.confFilename)
 }
 
 func (g *Globals) openDatabases() {
@@ -81,7 +80,7 @@ func (g *Globals) openDatabases() {
 		g.db, err = kv.Create(g.Config.DBFilename, dbOpts)
 	}
 	if err != nil {
-		log.Error("config.g open db error ", err)
+		log.Error("config.g open db error", "err", err)
 		panic("config.g open  db error " + err.Error())
 	}
 	if g.GetUser("admin") == nil {
@@ -103,10 +102,10 @@ func (g *Globals) openDatabases() {
 func (g *Globals) GetUser(login string) (u *User) {
 	v, err := g.db.Get(nil, login2key(login))
 	if err != nil {
-		log.Warn("globals.GetUser error ", err)
+		log.Warn("globals.GetUser error", "err", err)
 	}
 	if v == nil {
-		log.Debug("globals.GetUser user not found ", login)
+		log.Debug("globals.GetUser user not found", "login", login, "err", "not found")
 		return nil
 	}
 	return decodeUser(v)
@@ -123,21 +122,21 @@ func decodeUser(buff []byte) (u *User) {
 	if err := dec.Decode(u); err == nil {
 		return u
 	} else {
-		log.Warn("globals.decodeUser decode error ", err)
+		log.Warn("globals.decodeUser decode error", "err", err)
 	}
 	return nil
 }
 
 func (g *Globals) SaveUser(u *User) {
-	log.Info("globals.SaveUser ", u)
+	log.Info("globals.SaveUser", u)
 	r := new(bytes.Buffer)
 	enc := gob.NewEncoder(r)
 	if err := enc.Encode(u); err != nil {
-		log.Warn("globals.SaveUser encode error ", err)
+		log.Warn("globals.SaveUser encode error", "err", err, "user", u)
 		return
 	}
 	if err := g.db.Set(login2key(u.Login), r.Bytes()); err != nil {
-		log.Warn("globals.SaveUser set error ", err)
+		log.Warn("globals.SaveUser set error", "err", err, "user", u)
 	}
 }
 
@@ -154,7 +153,7 @@ func (g *Globals) GetUsers() (users []*User) {
 		if err == nil {
 			users = append(users, decodeUser(value))
 		} else {
-			log.Error("GetUsers next error ", err)
+			log.Error("GetUsers next error", "err", err)
 		}
 	}
 	return
@@ -171,7 +170,7 @@ func decodeEndpoint(buff []byte) (ec *EndpointConf) {
 	if err := dec.Decode(ec); err == nil {
 		return ec
 	} else {
-		log.Warn("globals.decodeEndpoint decode error ", err)
+		log.Warn("globals.decodeEndpoint decode error", "err", err)
 	}
 	return nil
 }
@@ -179,25 +178,25 @@ func decodeEndpoint(buff []byte) (ec *EndpointConf) {
 func (g *Globals) GetEndpoint(name string) (e *EndpointConf) {
 	v, err := g.db.Get(nil, endpoint2key(name))
 	if err != nil {
-		log.Warn("globals.GetEndpoint error ", err)
+		log.Warn("globals.GetEndpoint error", "err", err)
 	}
 	if v == nil {
-		log.Debug("globals.GeEndpoint endpoint not found ", name)
+		log.Debug("globals.GeEndpoint endpoint not found", "endpoint", name, "err", "not found")
 		return nil
 	}
 	return decodeEndpoint(v)
 }
 
 func (g *Globals) SaveEndpoint(e *EndpointConf) {
-	log.Info("globals.SaveEndpoint ", e)
+	log.Info("globals.SaveEndpoint", e)
 	r := new(bytes.Buffer)
 	enc := gob.NewEncoder(r)
 	if err := enc.Encode(e); err != nil {
-		log.Warn("globals.SaveEndpoint encode error ", err)
+		log.Warn("globals.SaveEndpoint encode error", "err", err, "endpointcfg", e)
 		return
 	}
 	if err := g.db.Set(endpoint2key(e.Name), r.Bytes()); err != nil {
-		log.Warn("globals.SaveEndpoint set error ", err)
+		log.Warn("globals.SaveEndpoint set error", "err", err, "endpointcfg", e)
 	}
 }
 
@@ -219,7 +218,7 @@ func (g *Globals) GetEndpoints() (eps []*EndpointConf) {
 		if err == nil {
 			eps = append(eps, decodeEndpoint(value))
 		} else {
-			log.Error("GetUsers next error ", err)
+			log.Error("GetUsers next error", "err", err)
 		}
 	}
 	return

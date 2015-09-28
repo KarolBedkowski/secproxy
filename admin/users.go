@@ -3,9 +3,11 @@ package admin
 import (
 	"github.com/gorilla/mux"
 	"k.prv/secproxy/config"
-	l "k.prv/secproxy/logging"
+	"k.prv/secproxy/logging"
 	"net/http"
 )
+
+var logUsers = logging.NewLogger("admin.users")
 
 // Init - Initialize application
 func InitUsersHandlers(globals *config.Globals, parentRotuer *mux.Route) {
@@ -61,7 +63,7 @@ func userPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 	}
 	login, ok := vars["login"]
 	if !ok || login == "" {
-		l.Error("admin.userPageHandler missing login")
+		logging.LogForRequest(logUsers, r).Error("admin.userPageHandler missing login", "vars", vars)
 		http.Error(w, "Missing login", http.StatusBadRequest)
 		return
 	}
@@ -72,7 +74,7 @@ func userPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 		if user := bctx.Globals.GetUser(login); user != nil {
 			ctx.Form.User = user.Clone()
 		} else {
-			l.Error("admin.userPageHandler user not found login ", login)
+			logging.LogForRequest(logUsers, r).Error("admin.userPageHandler user not found", "login", login)
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
 		}
@@ -84,16 +86,16 @@ func userPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 		r.ParseForm()
 		var currLogin = ctx.Form.User.Login
 		if err := decoder.Decode(&ctx.Form, r.Form); err != nil {
-			l.Error("admin.userPageHandler decode form error ", err, r.Form)
+			logging.LogForRequest(logUsers, r).Error("admin.userPageHandler decode form error ", "err", err, "form", r.Form)
 			break
 		}
 		if !newUser && ctx.Form.User.Login != login {
-			l.Error("admin.userPageHandler login != form.login ", login, ctx.Form.User.Login)
+			logging.LogForRequest(logUsers, r).Error("admin.userPageHandler login != form.login ", "login", login, "login-form", ctx.Form.User.Login)
 			http.Error(w, "Wrong/changed login", http.StatusBadRequest)
 			return
 		}
 		if !newUser && ctx.Form.User.Login != currLogin {
-			l.Warn("login changed - reverting")
+			logging.LogForRequest(logUsers, r).Warn("login changed - reverting")
 			ctx.Form.User.Login = currLogin
 		}
 		if errors := ctx.Form.Validate(bctx.Globals, newUser); len(errors) > 0 {
@@ -132,7 +134,7 @@ func chpassPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCon
 
 	suser, ok := bctx.Session.GetLoggedUser()
 	if !ok || suser == nil {
-		l.Error("admin.chpassPageHandler user not logged")
+		logging.LogForRequest(logUsers, r).Error("admin.chpassPageHandler user not logged")
 		http.Error(w, "Not logged user", http.StatusBadRequest)
 		return
 	}
@@ -141,13 +143,13 @@ func chpassPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCon
 	case "POST":
 		r.ParseForm()
 		if err := decoder.Decode(&ctx.Form, r.Form); err != nil {
-			l.Error("admin.chpassPageHandler decode form error ", err, r.Form)
+			logging.LogForRequest(logUsers, r).Error("admin.chpassPageHandler decode form error", "err", err, "form", r.Form)
 			break
 		}
 
 		user := bctx.Globals.GetUser(suser.Login)
 		if user == nil {
-			l.Error("admin.chpassPageHandler user not found ", suser.Login)
+			logging.LogForRequest(logUsers, r).Error("admin.chpassPageHandler user not found", "login", suser.Login)
 			http.Error(w, "Bad user", http.StatusBadRequest)
 			return
 		}

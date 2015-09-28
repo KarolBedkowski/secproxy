@@ -5,7 +5,7 @@ import (
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 	"k.prv/secproxy/config"
-	l "k.prv/secproxy/logging"
+	"k.prv/secproxy/logging"
 	"net/http"
 	"time"
 )
@@ -26,6 +26,7 @@ type SessionUser struct {
 }
 
 var store *sessions.CookieStore
+var logSession = logging.NewLogger("admin.session")
 
 func init() {
 	gob.Register(&SessionUser{})
@@ -41,11 +42,11 @@ func NewSessionUser(login, role string) *SessionUser {
 // InitSessionStore initialize sessions support
 func InitSessionStore(conf *config.AppConfiguration) error {
 	if len(conf.AdminPanel.CookieAuthKey) < 32 {
-		l.Info("Random CookieAuthKey")
+		logSession.Info("Random CookieAuthKey")
 		conf.AdminPanel.CookieAuthKey = string(securecookie.GenerateRandomKey(32))
 	}
 	if len(conf.AdminPanel.CookieEncKey) < 32 {
-		l.Info("Random CookieEncKey")
+		logSession.Info("Random CookieEncKey")
 		conf.AdminPanel.CookieEncKey = string(securecookie.GenerateRandomKey(32))
 	}
 	store = sessions.NewCookieStore([]byte(conf.AdminPanel.CookieAuthKey),
@@ -65,7 +66,7 @@ func ClearSession(w http.ResponseWriter, r *http.Request) {
 func SaveSession(w http.ResponseWriter, r *http.Request) error {
 	err := sessions.Save(r, w)
 	if err != nil {
-		l.Error("SaveSession error ", err)
+		logSession.Error("SaveSession error", "err", err)
 	}
 	return err
 }

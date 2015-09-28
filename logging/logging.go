@@ -1,76 +1,53 @@
 package logging
 
 import (
-	"io"
-	"log"
+	log "gopkg.in/inconshreveable/log15.v2"
+	"net/http"
 	"os"
 )
 
 var (
-	logger     = log.New(os.Stderr, "", log.LstdFlags)
-	debugLevel = false
+	Log = log.New()
 )
 
-const (
-	// DEBUG message prefix
-	DEBUG = "DEBUG"
-	// INFO message prefix
-	INFO = "INFO"
-	// WARN message  prefix
-	WARN = "WARN"
-	// ERROR message prefix
-	ERROR = "ERROR"
-	// FATAL level prefix
-	FATAL = "FATAL" // die
-)
-
-// Init logging
-func Init(filename string, debug bool) {
-	log.Printf("Logging to %s\n", filename)
-	debugLevel = debug
-	f, err := os.OpenFile(filename, os.O_RDWR|os.O_APPEND, 0660)
-	if err != nil {
-		f, err = os.Create(filename)
-	}
-	if err != nil {
-		log.Printf("Opening %s for writting error %s\n", filename, err.Error())
+func Init(logFilename string, debug bool) {
+	filehandler := log.Must.FileHandler(logFilename, log.LogfmtFormat())
+	handler := log.MultiHandler(
+		filehandler,
+		log.StreamHandler(os.Stderr, log.TerminalFormat()))
+	if debug {
+		handler = log.CallerStackHandler("%+v", handler)
 	} else {
-		logger = log.New(io.MultiWriter(os.Stderr, f), "", log.LstdFlags)
+		handler = log.CallerFileHandler(handler)
+		handler = log.LvlFilterHandler(log.LvlInfo, handler)
 	}
+	log.Root().SetHandler(handler)
 }
 
-// Print - wrapper on logger.Print
-func Print(v ...interface{}) {
-	logger.Print(v...)
+func Debug(msg string, args ...interface{}) {
+	Log.Debug(msg, args...)
 }
 
-// Printf - wrapper on logger.Print
-func Printf(format string, v ...interface{}) {
-	logger.Printf(format, v...)
+func Info(msg string, args ...interface{}) {
+	Log.Info(msg, args...)
 }
 
-// Debug display message with "DEBUG" prefix when debug=true
-func Debug(v ...interface{}) {
-	if debugLevel {
-		logger.Print(v...)
-	}
+func Warn(msg string, args ...interface{}) {
+	Log.Warn(msg, args...)
 }
 
-// Info display message with "INFO" prefix
-func Info(v ...interface{}) {
-	logger.Print(v...)
+func Error(msg string, args ...interface{}) {
+	Log.Error(msg, args...)
 }
 
-// Warn display message with "WARN" prefix
-func Warn(v ...interface{}) {
-	logger.Print(v...)
+func Panic(msg string, args ...interface{}) {
+	Log.Crit(msg, args...)
 }
 
-// Error display message with "ERROR" prefix
-func Error(v ...interface{}) {
-	logger.Print(v...)
+func LogForRequest(l log.Logger, r *http.Request) log.Logger {
+	return l.New("method", r.Method, "url", r.URL, "remote", r.RemoteAddr)
 }
 
-func Panic(v ...interface{}) {
-	logger.Panic(v...)
+func NewLogger(module string) log.Logger {
+	return Log.New("module", module)
 }

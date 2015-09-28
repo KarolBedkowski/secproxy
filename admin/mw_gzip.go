@@ -6,7 +6,6 @@ package admin
 import (
 	"io"
 	res "k.prv/secproxy/resources"
-	"log"
 	"mime"
 	"net/http"
 	"os"
@@ -71,7 +70,7 @@ func serveFile(w http.ResponseWriter, r *http.Request, fs http.FileSystem,
 		}
 		http.ServeContent(w, r, stat.Name(), stat.ModTime(), file)
 	} else {
-		log.Printf("Asset open %v error: %v\n", name, err.Error())
+		log.Error("Asset open error", "name", name, "err", err.Error())
 		http.NotFound(w, r)
 	}
 }
