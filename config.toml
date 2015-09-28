@@ -1,6 +1,5 @@
 
-EndpointsFilename = "endpoints.kvdb"
-UsersFilename = "users.kvdb"
+DBFilename = "database.kvdb"
 
 [AdminPanel]
 	StaticDir = "./static"

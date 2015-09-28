@@ -23,8 +23,7 @@ type (
 
 	// AppConfiguration Main app configuration.
 	AppConfiguration struct {
-		EndpointsFilename string
-		UsersFilename     string
+		DBFilename string
 
 		AdminPanel AdminPanelConf
 	}
