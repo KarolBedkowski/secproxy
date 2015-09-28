@@ -74,9 +74,7 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 	var handler http.Handler
 
 	handler = httputil.NewSingleHostReverseProxy(uri)
-	if len(conf.Users) > 0 {
-		handler = authenticationMW(handler, name, globals)
-	}
+	handler = authenticationMW(handler, name, globals)
 	handler = counterMw(handler, name)
 	handler = common.LogHandler(handler)
 
@@ -191,6 +189,11 @@ func counterMw(h http.Handler, endpoint string) http.Handler {
 
 func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conf := globals.GetEndpoint(endpoint)
+		if len(conf.Users) == 0 {
+			h.ServeHTTP(w, r)
+			return
+		}
 		usr, pass, _ := r.BasicAuth()
 		if usr == "" && r.URL != nil && r.URL.User != nil {
 			usr = r.URL.User.Username()
@@ -206,14 +209,18 @@ func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) 
 		}
 
 		user := globals.GetUser(usr)
-		if user.CheckPassword(pass) {
+		if conf.AcceptUser(user.Login) && user.CheckPassword(pass) {
 			r.Header.Set("X-Authenticated-User", usr)
 			counters.Add(endpoint+"-pass", 1)
 			h.ServeHTTP(w, r)
 			return
 		}
-		l.Info("authenticationMW ", endpoint, " 403 Forbidden")
-		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+		//l.Info("authenticationMW ", endpoint, " 403 Forbidden")
+		//http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		counters.Add(endpoint+"-403", 1)
+
+		w.Header().Set("WWW-Authenticate", "Basic realm=\"REALM\"")
+		l.Info("authenticationMW ", endpoint, " 401 Unauthorized")
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 	})
 }
