@@ -84,11 +84,17 @@
 						{{ range .AllUsers }}
 						<p>
 						<label>
-							<input type="checkbox" name="Users" value="{{ .Login }}" {{ if $form.HasUser .Login }} checked {{ end }}>
+							<input type="checkbox" name="Users" value="{{ .Login }}"
+									{{ if $form.HasUser .Login }} checked {{ end }}
+									  class="cb-user">
 							{{ .Name }} ({{ .Login }})
 						</label>
 						</p>
 						{{ end }}
+						<hr/>
+						<label>
+							<input type="checkbox" id="users-select-all"> Check/Uncheck all
+						</label>
 					</fieldset>
 				</li>
 			</ul>
@@ -131,11 +137,28 @@ $(function() {
 		},
 		errorClass: "uk-form-danger",
 	});
-	$("#btn-delete").on("click", function (){
+	$("#btn-delete").on("click", function () {
 		UIkit.modal.confirm("Delete endpoint?", function(){
 			document.location.href = document.location.href + "/delete";
 		});
 	});
+	$('#users-select-all').change(function () {
+		$('.cb-user').prop('checked', $(this).is(':checked'));
+	});
+
+	function setSelectAllUsers() {
+		if ($('.cb-user:checked').length === 0) {
+			$('#users-select-all').prop("indeterminate", false).prop('checked', false);
+		} else if ($('.cb-user:not(:checked)').length === 0) {
+			$('#users-select-all').prop("indeterminate", false).prop('checked', true);
+		} else {
+			$('#users-select-all').prop("indeterminate", true);
+		}
+	};
+
+	$('.cb-user').change(setSelectAllUsers);
+
+	setSelectAllUsers();
 });
 </script>
 {{ end }}
