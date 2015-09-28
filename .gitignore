@@ -6,3 +6,5 @@ resources
 build
 *.pem
 *.cert
+.*
+*.kvdb
