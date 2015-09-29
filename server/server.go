@@ -233,7 +233,11 @@ func prepareNetworks(addrs string) (networks []*net.IPNet) {
 }
 
 func acceptAddress(networks []*net.IPNet, addr string) bool {
-	addr = addr[:strings.LastIndex(addr, ":")]
+	// cut off port
+	portPos := strings.LastIndex(addr, ":")
+	if portPos > -1 {
+		addr = addr[:portPos]
+	}
 	a := net.ParseIP(addr)
 	if a == nil {
 		log.Warn("acceptAddress parse error", "addr", addr)
@@ -261,6 +265,7 @@ func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) 
 					"addr", r.RemoteAddr)
 				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 				counters.Add(endpoint+"-403", 1)
+				return
 			}
 		}
 
