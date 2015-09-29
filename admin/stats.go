@@ -13,6 +13,8 @@ type stat struct {
 	All          interface{}
 	Status       interface{}
 	StatusSSL    interface{}
+	Error        interface{}
+	ErrorSSL     interface{}
 }
 
 func statsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
@@ -27,6 +29,7 @@ func statsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 	var stats *expvar.Map
 	stats = expvar.Get("counters").(*expvar.Map)
 	servStat := expvar.Get("states").(*expvar.Map)
+	errors := expvar.Get("errors").(*expvar.Map)
 
 	for _, ep := range bctx.Globals.GetEndpoints() {
 		epname := ep.Name
@@ -36,7 +39,10 @@ func statsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 		fail := stats.Get(epname + "-403")
 		status := servStat.Get(epname)
 		statusSSL := servStat.Get(epname + "-ssl")
-		ctx.Stats = append(ctx.Stats, &stat{epname, fail, success, unauth, all, status, statusSSL})
+		err := errors.Get(epname)
+		errSSL := errors.Get(epname + "-ssl")
+		ctx.Stats = append(ctx.Stats, &stat{epname, fail, success, unauth, all, status, statusSSL,
+			err, errSSL})
 	}
 
 	RenderTemplateStd(w, ctx, "stats.tmpl")

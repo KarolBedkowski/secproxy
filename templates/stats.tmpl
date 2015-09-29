@@ -1,4 +1,8 @@
-{{define "body"}}
+{{ define "header" }}
+	<link rel="stylesheet" type="text/css" href="/static/css/uikit/components/tooltip.almost-flat.css">
+{{ end }}
+
+{{ define "body" }}
 <h2>Stats</h2>
 <table class="uk-table uk-table-hover uk-table-striped uk-table-condensed">
 	<thead>
@@ -16,8 +20,12 @@
 		{{ range .Stats }}
 		<tr>
 			<td>{{ .Endpoint }}</td>
-			<td>{{ .Status }}</td>
-			<td>{{ .StatusSSL }}</td>
+			<td>{{ .Status }}
+				{{ with .Error }}<i class="uk-icon-warning" data-uk-tooltip title="{{ . }}"></i>{{ end }}
+			</td>
+			<td>{{ .StatusSSL }}
+				{{ with .ErrorSSL }}<i class="uk-icon-warning" data-uk-tooltip title="{{ . }}"></i>{{ end }}
+			</td>
 			<td>{{ .Success }}</td>
 			<td>{{ .Unauthorized }}</td>
 			<td>{{ .Fail }}</td>
@@ -26,4 +34,8 @@
 		{{ end }}
 	</tbody>
 </table>
-{{end}}
+{{ end }}
+
+{{ define "scripts" }}
+	<script src="/static/js/uikit/components/tooltip.js"></script>
+{{ end }}

@@ -25,6 +25,7 @@ type endpoint struct {
 	Local      string
 	LocalHttps string
 	Remote     string
+	Errors     string
 }
 
 func endpointsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
@@ -42,6 +43,7 @@ func endpointsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePage
 				ep.HTTPAddress,
 				ep.HTTPSAddress,
 				ep.Destination,
+				server.EndpointErrors(ep.Name),
 			})
 	}
 	RenderTemplateStd(w, ctx, "endpoints/index.tmpl")

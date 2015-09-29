@@ -33,6 +33,7 @@ var (
 	states   map[string]*state = make(map[string]*state)
 	counters                   = expvar.NewMap("counters")
 	servStat                   = expvar.NewMap("states")
+	errors                     = expvar.NewMap("errors")
 	mu       sync.RWMutex
 
 	log = logging.NewLogger("server")
@@ -61,6 +62,7 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 	}
 
 	servStat.Set(name, varState("stopped"))
+	servStat.Set(name+"-ssl", varState("stopped"))
 	conf := globals.GetEndpoint(name)
 	if conf == nil {
 		return []string{"invalid endpoint"}
@@ -89,11 +91,13 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 		if e != nil {
 			log.Error("server.StartEndpoint starting http listen error ", "endpoint", name, "err", e)
 			errstr = append(errstr, "starting http error "+e.Error())
+			errors.Set(name, varState(e.Error()))
 		} else {
 			go func() {
 				st.running = true
 				go s.Serve(ls)
 				servStat.Set(name, varState("running"))
+				errors.Set(name, varState(""))
 				select {
 				case <-st.serverClose:
 					log.Info("server.StartEndpoint stop http ", "endpoint", name)
@@ -125,17 +129,20 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 		if err != nil {
 			log.Error("server.StartEndpoint starting https cert error", "err", err, "endpoint", name)
 			errstr = append(errstr, "starting https - cert error "+err.Error())
+			errors.Set(name+"-ssl", varState(err.Error()))
 		} else {
 			ln, err := net.Listen("tcp", conf.HTTPSAddress)
 			if err != nil {
 				log.Error("server.StartEndpoint starting https listen error ", "err", err, "endpoint", name)
 				errstr = append(errstr, "starting https error "+err.Error())
+				errors.Set(name+"-ssl", varState(err.Error()))
 			} else {
 				tlsListener := tls.NewListener(ln, config)
 				go func() {
 					st.runningSSL = true
 					go s.Serve(tlsListener)
 					servStat.Set(name+"-ssl", varState("running"))
+					errors.Set(name+"-ssl", varState(""))
 					select {
 					case <-st.serverSSLClose:
 						log.Info("server.StartEndpoint stop https", "endpoint", name)
@@ -177,6 +184,16 @@ func EndpointRunning(name string) bool {
 		return st.running || st.runningSSL
 	}
 	return false
+}
+
+func EndpointErrors(name string) (e string) {
+	if err := errors.Get(name).String(); err != "" {
+		e = err + "; "
+	}
+	if err := errors.Get(name + "-ssl").String(); err != "" {
+		e = e + "SSL: " + err
+	}
+	return e
 }
 
 func counterMw(h http.Handler, endpoint string) http.Handler {
