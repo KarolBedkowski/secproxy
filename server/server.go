@@ -188,11 +188,11 @@ func EndpointRunning(name string) bool {
 }
 
 func EndpointErrors(name string) (e string) {
-	if err := errors.Get(name).String(); err != "" {
-		e = err + "; "
+	if err := errors.Get(name); err != nil {
+		e = err.String() + "; "
 	}
-	if err := errors.Get(name + "|ssl").String(); err != "" {
-		e = e + "SSL: " + err
+	if err := errors.Get(name + "|ssl"); err != nil {
+		e = e + "SSL: " + err.String()
 	}
 	return e
 }
