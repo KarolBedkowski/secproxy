@@ -34,13 +34,13 @@ func statsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 	for _, ep := range bctx.Globals.GetEndpoints() {
 		epname := ep.Name
 		all := stats.Get(epname)
-		success := stats.Get(epname + "-pass")
-		unauth := stats.Get(epname + "-401")
-		fail := stats.Get(epname + "-403")
+		success := stats.Get(epname + "|pass")
+		unauth := stats.Get(epname + "|401")
+		fail := stats.Get(epname + "|403")
 		status := servStat.Get(epname)
-		statusSSL := servStat.Get(epname + "-ssl")
+		statusSSL := servStat.Get(epname + "|ssl")
 		err := errors.Get(epname)
-		errSSL := errors.Get(epname + "-ssl")
+		errSSL := errors.Get(epname + "|ssl")
 		ctx.Stats = append(ctx.Stats, &stat{epname, fail, success, unauth, all, status, statusSSL,
 			err, errSSL})
 	}

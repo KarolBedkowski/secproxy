@@ -63,7 +63,7 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 	}
 
 	servStat.Set(name, varState("stopped"))
-	servStat.Set(name+"-ssl", varState("stopped"))
+	servStat.Set(name+"|ssl", varState("stopped"))
 	conf := globals.GetEndpoint(name)
 	if conf == nil {
 		return []string{"invalid endpoint"}
@@ -130,20 +130,20 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 		if err != nil {
 			log.Error("server.StartEndpoint starting https cert error", "err", err, "endpoint", name)
 			errstr = append(errstr, "starting https - cert error "+err.Error())
-			errors.Set(name+"-ssl", varState(err.Error()))
+			errors.Set(name+"|ssl", varState(err.Error()))
 		} else {
 			ln, err := net.Listen("tcp", conf.HTTPSAddress)
 			if err != nil {
 				log.Error("server.StartEndpoint starting https listen error ", "err", err, "endpoint", name)
 				errstr = append(errstr, "starting https error "+err.Error())
-				errors.Set(name+"-ssl", varState(err.Error()))
+				errors.Set(name+"|ssl", varState(err.Error()))
 			} else {
 				tlsListener := tls.NewListener(ln, config)
 				go func() {
 					st.runningSSL = true
 					go s.Serve(tlsListener)
-					servStat.Set(name+"-ssl", varState("running"))
-					errors.Set(name+"-ssl", varState(""))
+					servStat.Set(name+"|ssl", varState("running"))
+					errors.Set(name+"|ssl", varState(""))
 					select {
 					case <-st.serverSSLClose:
 						log.Info("server.StartEndpoint stop https", "endpoint", name)
@@ -191,7 +191,7 @@ func EndpointErrors(name string) (e string) {
 	if err := errors.Get(name).String(); err != "" {
 		e = err + "; "
 	}
-	if err := errors.Get(name + "-ssl").String(); err != "" {
+	if err := errors.Get(name + "|ssl").String(); err != "" {
 		e = e + "SSL: " + err
 	}
 	return e
@@ -264,7 +264,7 @@ func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) 
 				log.Info("authenticationMW 403 Forbidden - addr", "endpoint", endpoint,
 					"addr", r.RemoteAddr)
 				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-				counters.Add(endpoint+"-403", 1)
+				counters.Add(endpoint+"|403", 1)
 				return
 			}
 		}
@@ -283,23 +283,24 @@ func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) 
 			w.Header().Set("WWW-Authenticate", "Basic realm=\"REALM\"")
 			logging.LogForRequest(log, r).Info("authenticationMW 401 Unauthorized", "endpoint", endpoint, "status", 401)
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			counters.Add(endpoint+"-401", 1)
+			counters.Add(endpoint+"|401", 1)
 			return
 		}
 
 		user := globals.GetUser(usr)
 		if user.Active && conf.AcceptUser(user.Login) && user.CheckPassword(pass) {
 			r.Header.Set("X-Authenticated-User", usr)
-			counters.Add(endpoint+"-pass", 1)
+			counters.Add(endpoint+"|pass", 1)
 			h.ServeHTTP(w, r)
 			return
 		}
 		//log.Info("authenticationMW ", endpoint, " 403 Forbidden")
 		//http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-		counters.Add(endpoint+"-403", 1)
+		counters.Add(endpoint+"|403", 1)
 
 		w.Header().Set("WWW-Authenticate", "Basic realm=\"REALM\"")
-		logging.LogForRequest(log, r).Info("authenticationMW 401 Unauthorized", "endpoint", endpoint, "status", 401)
+		logging.LogForRequest(log, r).Info("authenticationMW 401 Unauthorized", "endpoint", endpoint, "status", 401,
+			"user", user.Login, "user_active", user.Active)
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 	})
 }
