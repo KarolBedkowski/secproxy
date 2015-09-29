@@ -14,6 +14,9 @@ type (
 		Autostart    bool
 
 		Users []string
+
+		// AcceptAddr containst list of ip/networks separated by new line
+		AcceptAddr string
 	}
 )
 
@@ -56,6 +59,7 @@ func (e *EndpointConf) Clone() (ne *EndpointConf) {
 		Destination:  e.Destination,
 		Autostart:    e.Autostart,
 
-		Users: e.Users,
+		Users:      e.Users,
+		AcceptAddr: e.AcceptAddr,
 	}
 }

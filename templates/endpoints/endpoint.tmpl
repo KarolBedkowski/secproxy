@@ -7,6 +7,7 @@
 			<ul class="uk-tab" data-uk-tab="{connect:'#tab-content'}">
 				<li class="uk-active"><a href="#">Main</a></li>
 				<li><a href="#">Users</a></li>
+				<li><a href="#">Networks</a></li>
 			</ul>
 			<ul id="tab-content" class="uk-switcher uk-margin">
 				<li class="uk-active">
@@ -88,6 +89,7 @@
 								{{ with $sslkeyError }}<label class="error">{{ . }}</label>{{ end }}
 							</div>
 						</div>
+						<p class="uk-text-small">After change endpoint must be restarted</p>
 					</fieldset>
 				</li>
 				<li>
@@ -108,6 +110,14 @@
 						<label>
 							<input type="checkbox" id="users-select-all"> Check/Uncheck all
 						</label>
+					</fieldset>
+				</li>
+				<li>
+					<fieldset data-uk-margin>
+						<legend>Acceptable networks</legend>
+						<label>List of IP or IP/mask (separated by space/new line)</label>
+						<textarea name="AcceptAddr" class="uk-width-1-1">{{ .Form.AcceptAddr }}</textarea>
+						<p class="uk-text-small">After change endpoint must be restarted</p>
 					</fieldset>
 				</li>
 			</ul>

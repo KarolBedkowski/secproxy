@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 )
@@ -203,9 +204,65 @@ func counterMw(h http.Handler, endpoint string) http.Handler {
 	})
 }
 
+func prepareNetworks(conf *config.EndpointConf) (networks []*net.IPNet) {
+	if conf.AcceptAddr != "" {
+		for _, n := range strings.Fields(conf.AcceptAddr) {
+			n = strings.TrimSpace(n)
+			if strings.Contains(n, "/") {
+				if _, network, err := net.ParseCIDR(n); err == nil {
+					networks = append(networks, network)
+				} else {
+					log.Warn("authenticationMW prepare networks error", "err", err, "net", n)
+				}
+			} else {
+				if ip := net.ParseIP(n); ip != nil {
+					var mask net.IPMask
+					if len(ip) == 4 { // ipv4
+						mask = net.CIDRMask(16, 16)
+					} else {
+						mask = net.CIDRMask(128, 128)
+					}
+					network := &net.IPNet{ip, mask}
+					networks = append(networks, network)
+				} else {
+					log.Warn("authenticationMW prepare ip error", "net", n)
+				}
+			}
+		}
+	}
+	log.Debug("prepareNetworks", "networks", networks, "inp", conf.AcceptAddr)
+	return
+}
+
+func acceptAddress(networks []*net.IPNet, addr string) bool {
+	addr = addr[:strings.LastIndex(addr, ":")]
+	a := net.ParseIP(addr)
+	if a == nil {
+		log.Warn("acceptAddress parse error", "addr", addr)
+		return false
+	}
+	for _, n := range networks {
+		if n.Contains(a) {
+			return true
+		}
+	}
+	return false
+}
+
 func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) http.Handler {
+	conf := globals.GetEndpoint(endpoint)
+	networks := prepareNetworks(conf)
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		conf := globals.GetEndpoint(endpoint)
+		if networks != nil {
+			if !acceptAddress(networks, r.RemoteAddr) {
+				log.Info("authenticationMW 403 Forbidden - addr", "endpoint", endpoint,
+					"addr", r.RemoteAddr)
+				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+				counters.Add(endpoint+"-403", 1)
+			}
+		}
+
 		if len(conf.Users) == 0 {
 			h.ServeHTTP(w, r)
 			return
