@@ -1,3 +1,8 @@
 div.pusher {
 	padding: 1em;
 }
+
+.uk-form fieldset {
+	display: block;
+	margin-bottom: 2em;
+}
