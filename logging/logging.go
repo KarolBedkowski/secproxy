@@ -10,15 +10,17 @@ var (
 	Log = log.New()
 )
 
-func Init(logFilename string, debug bool) {
+func Init(logFilename string, debug int) {
 	filehandler := log.Must.FileHandler(logFilename, log.LogfmtFormat())
 	handler := log.MultiHandler(
 		filehandler,
 		log.StreamHandler(os.Stderr, log.TerminalFormat()))
-	if debug {
+	if debug > 1 {
 		handler = log.CallerStackHandler("%+v", handler)
 	} else {
 		handler = log.CallerFileHandler(handler)
+	}
+	if debug == 0 {
 		handler = log.LvlFilterHandler(log.LvlInfo, handler)
 	}
 	log.Root().SetHandler(handler)

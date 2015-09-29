@@ -132,7 +132,7 @@ func decodeUser(buff []byte) (u *User) {
 }
 
 func (g *Globals) SaveUser(u *User) {
-	log.Info("globals.SaveUser", u)
+	log.Info("globals.SaveUser", "user", u)
 	r := new(bytes.Buffer)
 	enc := gob.NewEncoder(r)
 	if err := enc.Encode(u); err != nil {

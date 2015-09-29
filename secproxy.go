@@ -29,7 +29,7 @@ func main() {
 	logFilename := flag.String("log", "./secproxy.log", "Log file name")
 	flag.Parse()
 
-	logging.Init(*logFilename, *debug > 0)
+	logging.Init(*logFilename, *debug)
 
 	globals := config.NewGlobals(*configFilename, *debug, *logFilename)
 
