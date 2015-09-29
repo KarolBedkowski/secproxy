@@ -1,0 +1,55 @@
+++++++++++++++++
+ secproxy 0.x.x
+++++++++++++++++
+
+:Credits: Copyright (c) Karol Będkowski, 2015
+:Licence: GPLv2+
+:Status: beta
+:Tags: proxy, reverse proxy, security
+
+
+Simple reverse proxy with authentication to protect other services
+without authentication / ssl.
+
+
+Building
+========
+Requirements:
+ * GoLang
+ * Libraries (go get):
+
+   * gorilla {context,mux,sessions,securecookie,schema} (http://gihub.com/gorilla)
+   * bcrypt (http://code.google.com/p/go.crypto/bcrypt)
+   * kv (https://github.com/cznic/kv)
+   * toml (https://github.com/naoina/toml/)
+   * log15 (http://gopkg.in/inconshreveable/log15.v2)
+
+ * go-asset-builder (optional)
+ * yui-compressor (optional)
+ * closure-compiler(optional)
+ * go-reload (optional, for development)
+
+Building:
+ * `go get .`
+ * `make`
+
+Running
+=======
+1. adjust config.toml
+2. launch `./secproxy`
+3. go to http://localhost:8000
+
+   Default users password:
+   admin: admin
+
+Other options / help:
+`./secproxy -h`
+
+Credits
+=======
+Included software:
+ * jQuery http://jquery.com/
+ * jQuery Validation Plugin http://bassistance.de/jquery-plugins/jquery-plugin-validation/
+ * uikit http://getuikit.com/index.html
+
+.. vim: ft=rst tw=72
