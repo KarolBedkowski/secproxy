@@ -1,6 +1,8 @@
 package config
 
-import ()
+import (
+	"regexp"
+)
 
 type (
 	EndpointConf struct {
@@ -29,8 +31,13 @@ func (e *EndpointConf) AcceptUser(login string) bool {
 	return false
 }
 
+var nameValidator = regexp.MustCompile("^\\w+$")
+
 func (e *EndpointConf) Validate() (errors map[string]string) {
 	errors = make(map[string]string)
+	if !nameValidator.MatchString(e.Name) {
+		errors["Name"] = "Letters, numbers, and underscores only please"
+	}
 	if e.HTTPAddress == "" && e.HTTPSAddress == "" {
 		errors["HTTPSAddress"] = "Missing local address"
 	}

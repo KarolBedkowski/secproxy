@@ -16,7 +16,7 @@
 						<div class="uk-form-row {{ if $nameError }} uk-form-danger {{ end }}">
 							<label class="uk-form-label">Name</label>
 							<div class="uk-form-controls">
-								<input type="text" name="Name" value="{{ .Form.Name }}" required maxlength="15" {{ if ne .Form.Name "" }}readonly{{ end }} class="uk-width-1-1">
+								<input type="text" name="Name" value="{{ .Form.Name }}" required maxlength="15" {{ if ne .Form.Name "" }}readonly{{ end }} class="uk-width-1-1" >
 								{{ with $nameError }}<label class="error">{{ . }}</label>{{ end }}
 							</div>
 						</div>
@@ -141,8 +141,16 @@
 {{ define "scripts" }}
 <script type="text/javascript">
 $(function() {
+	$.validator.addMethod( "alphanumeric", function( value, element ) {
+		return this.optional( element ) || /^\w+$/i.test( value );
+	}, "Letters, numbers, and underscores only please" );
+
 	$("#form").validate({
 		rules: {
+			Name: {
+				required: true,
+				alphanumeric: true,
+			},
 			SslKey: {
 				required: {
 					depends: function(element) {
