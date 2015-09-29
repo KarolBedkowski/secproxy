@@ -1,0 +1,53 @@
+{{ define "header" }}
+	<link rel="stylesheet" href="/static/css/uikit/components/form-file.almost-flat.css" type="text/css"	/>
+{{ end }}
+
+{{ define "body" }}
+<h2>Certs</h2>
+
+<div class="uk-panel uk-panel-box uk-margin-bottom">
+	<h3 class="uk-panel-title">Available certs</h3>
+	<table class="uk-table uk-table-hover uk-table-striped uk-table-condensed">
+		<thead>
+			<tr>
+				<th>File name</th>
+				<th>&nbsp;</th>
+			</tr>
+		</thead>
+		<tbody>
+			{{range .Certs}}
+			<tr>
+				<td>{{ . }}</td>
+				<td><a href="/certs/delete?c={{ . }}" class="btn-delete">Delete</a></td>
+			</tr>
+			{{end}}
+		</tbody>
+	</table>
+</div>
+
+<div class="uk-panel uk-panel-box">
+	<h3 class="uk-panel-title"><i class="uk-icon-upload"></i> Upload new file</h3>
+	<form enctype="multipart/form-data" action="/certs/upload" method="POST" id="form" class="uk-form uk-form-horizontal ui-width-1-1">
+		<input type="hidden" name="BasePageContext.CsrfToken" id="" value="{{.CsrfToken}}" />
+		<div class="uk-form-file">
+			<button class="uk-button">Select file</button>
+			<input type="file" name="uploadfile" />
+		</div>
+		<button type="submit" class="uk-button uk-button-primary">Upload</button>
+	</form>
+</div>
+
+
+{{end}}
+
+{{define "scripts"}}
+<script type="text/javascript" charset="utf-8">
+	$(".btn-delete").on("click", function (e) {
+		e.preventDefault();
+		var href = $(this).attr("href");
+		UIkit.modal.confirm("Delete endpoint?", function(){
+			document.location.href = href;
+		});
+	});
+</script>
+{{end}}

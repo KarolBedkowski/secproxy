@@ -242,3 +242,12 @@ func (g *Globals) FindCerts() (names []string) {
 		})
 	return
 }
+
+func (g *Globals) CertUsed(name string) (epname string, used bool) {
+	for _, ep := range g.GetEndpoints() {
+		if ep.SslCert == name || ep.SslKey == name {
+			return ep.Name, true
+		}
+	}
+	return "", false
+}

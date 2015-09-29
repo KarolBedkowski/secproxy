@@ -80,6 +80,13 @@ func (ctx *BasePageContext) UserLogged() bool {
 	return ok && user != nil
 }
 
+func (ctx *BasePageContext) UserLogin() string {
+	if user, ok := ctx.Session.GetLoggedUser(); ok && user != nil {
+		return user.Login
+	}
+	return ""
+}
+
 func (ctx *BasePageContext) HasUserRole(role string) bool {
 	user, ok := ctx.Session.GetLoggedUser()
 	return ok && user.Role == role
