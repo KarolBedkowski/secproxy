@@ -85,6 +85,7 @@ func userPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 	case "POST":
 		r.ParseForm()
 		var currLogin = ctx.Form.User.Login
+		ctx.Form.User.Active = false // post not send unchecked checkboxes
 		if err := decoder.Decode(&ctx.Form, r.Form); err != nil {
 			logging.LogForRequest(logUsers, r).Error("admin.userPageHandler decode form error ", "err", err, "form", r.Form)
 			break

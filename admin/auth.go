@@ -47,6 +47,12 @@ func loginPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 			RenderTemplate(w, ctx, "login", "login.tmpl", "flash.tmpl")
 			return
 		}
+		if !user.Active {
+			logging.LogForRequest(logAuth, r).Info("admin.loginPageHandler user account disable", "user", user)
+			ctx.Message = "Account inactive"
+			RenderTemplate(w, ctx, "login", "login.tmpl", "flash.tmpl")
+			return
+		}
 		ctx.AddFlashMessage("User log in", "info")
 		ctx.Session.SetLoggedUser(NewSessionUser(user.Login, user.Role))
 		ctx.Save()

@@ -10,6 +10,7 @@ type (
 		Name     string
 		Password string
 		Role     string
+		Active   bool
 	}
 )
 
@@ -44,5 +45,6 @@ func (u *User) Clone() (nu *User) {
 		u.Name,
 		u.Password,
 		u.Role,
+		u.Active,
 	}
 }

@@ -208,7 +208,7 @@ func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) 
 		}
 
 		user := globals.GetUser(usr)
-		if conf.AcceptUser(user.Login) && user.CheckPassword(pass) {
+		if user.Active && conf.AcceptUser(user.Login) && user.CheckPassword(pass) {
 			r.Header.Set("X-Authenticated-User", usr)
 			counters.Add(endpoint+"-pass", 1)
 			h.ServeHTTP(w, r)
