@@ -7,13 +7,10 @@ import (
 	"k.prv/secproxy/logging"
 	"k.prv/secproxy/resources"
 	"k.prv/secproxy/server"
-	//	"k.prv/secproxy/admin"
-	//	"net/http"
 	// _ "net/http/pprof" // /debug/pprof/
-	"runtime"
-	//"time"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 )
 
@@ -22,7 +19,9 @@ import (
 func main() {
 	log := logging.NewLogger("main")
 
-	log.Info("Starting... ", "ver", config.AppVersion)
+	log.Info("Starting secproxy... ", "ver", config.AppVersion)
+	log.Info("Copyright (c) Karol Będkowski, 2015")
+
 	configFilename := flag.String("config", "./config.toml", "Configuration filename")
 	debug := flag.Int("debug", 1, "Run in debug mode (1) or normal (0)")
 	forceLocalFiles := flag.Bool("forceLocalFiles", false, "Force use local files instead of embended assets")
@@ -46,13 +45,13 @@ func main() {
 	go func() {
 		<-c
 		globals.Close()
-		os.Exit(-1)
+		os.Exit(0)
 	}()
 
-	log.Info("Starting ...", "Debug", globals.Debug)
+	log.Info("Configuration loaded", "debug", globals.Debug)
 
 	if !globals.Debug {
-		log.Info("NumCPU: %d", runtime.NumCPU())
+		log.Info("Setting maxprocs", "numcpu", runtime.NumCPU())
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
 
@@ -62,17 +61,14 @@ func main() {
 		log.Info("Using local files...")
 	}
 
-	server.Init(globals)
-
-	log.Info("Autostarting...")
+	log.Info("Autostarting endpoints...")
 	for _, ep := range globals.GetEndpoints() {
 		if ep.Autostart {
-			log.Debug("Starting endpoint", "endpoint", ep.Name)
+			log.Info("Starting endpoint", "endpoint", ep.Name)
 			server.StartEndpoint(ep.Name, globals)
 		}
 	}
-
-	//	server.StopEndpoint("google", globals)
+	log.Info("All endpoints started")
 
 	log.Info("Starting Admin Panel...")
 	admin.StartAdmin(globals)

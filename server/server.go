@@ -38,9 +38,6 @@ var (
 	log = logging.NewLogger("server")
 )
 
-func Init(globals *config.Globals) {
-}
-
 func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 	log.Info("server.StartEndpoint starting ", "endpoint", name)
 
