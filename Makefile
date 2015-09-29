@@ -3,7 +3,7 @@ DATE=`date`
 LDFLAGS="-X k.prv/secproxy/config.AppVersion '$(VERSION) - $(DATE)'"
 GOBUILD=go
 
-.PHONY: resources build
+.PHONY: resources build certs
 
 build: resources
 	GOGCCFLAGS="-s -fPIC -O4 -Ofast -march=native" $(GODEP) $(GOBUILD) build -ldflags $(LDFLAGS)
@@ -24,8 +24,9 @@ run:
 	go-reload secproxy.go -- -debug=1
 
 certs:
-	openssl genrsa 2048 > key.pem
-	openssl req -new -x509 -key key.pem -out cert.pem -days 1000
+	mkdir -p certs
+	openssl genrsa 2048 > certs/key.pem
+	openssl req -new -x509 -key certs/key.pem -out certs/cert.pem -days 1000
 
 debug: clean
 	$(GOBUILD) build -gcflags "-N -l" secproxy.go
