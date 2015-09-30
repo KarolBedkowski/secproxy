@@ -32,6 +32,7 @@ func StartAdmin(globals *config.Globals) {
 	InitEndpointsHandlers(globals, appRouter.PathPrefix("/endpoints"))
 	InitCertsHandlers(globals, appRouter.PathPrefix("/certs"))
 	InitStatsHandlers(globals, appRouter.PathPrefix("/stats"))
+	InitSettingsHandlers(globals, appRouter.PathPrefix("/settings"))
 
 	http.Handle("/static/", http.StripPrefix("/static",
 		FileServer(http.Dir(globals.Config.AdminPanel.StaticDir), debug)))

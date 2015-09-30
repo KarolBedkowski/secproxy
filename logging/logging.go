@@ -27,6 +27,7 @@ func Init() {
 		handler = log.LvlFilterHandler(log.LvlInfo, handler)
 	}
 	log.Root().SetHandler(handler)
+	log.Info("Logging started", "level", debug, "log_file", logFilename)
 }
 
 func LogFilename() string {
@@ -35,6 +36,15 @@ func LogFilename() string {
 
 func DebugLevel() int {
 	return debug
+}
+
+func SetDebugLevel(level int) (ok bool) {
+	if level != debug {
+		debug = level
+		Init()
+		ok = true
+	}
+	return
 }
 
 func Debug(msg string, args ...interface{}) {
