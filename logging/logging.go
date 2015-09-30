@@ -48,9 +48,13 @@ func Panic(msg string, args ...interface{}) {
 
 func LogForRequest(l log.Logger, r *http.Request) log.Logger {
 	ctx := log.Ctx{
-		"method": r.Method,
-		"url":    r.URL,
-		"remote": r.RemoteAddr,
+		"method":     r.Method,
+		"host":       r.Host,
+		"url":        r.URL,
+		"requesturi": r.RequestURI,
+		"remote":     r.RemoteAddr,
+		"proto":      r.Proto,
+		//		"header":     r.Header,
 	}
 	if val, ok := r.Header["X-Forwarded-For"]; ok {
 		ctx["x_forward_for"] = val

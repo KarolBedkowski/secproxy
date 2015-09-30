@@ -20,20 +20,23 @@ func (writer *loggingResponseWriter) WriteHeader(status int) {
 }
 
 // LogHandler log all requests.
-func LogHandler(h http.Handler) http.HandlerFunc {
+func LogHandler(h http.Handler, prefix string, logkv ...interface{}) http.HandlerFunc {
+	orgLogkv := logkv
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		logger := l.LogForRequest(l.Log, r).New("start", start.Unix())
-		logger.Debug("begin request")
+		logkv = append(orgLogkv, "start")
+		logkv = append(logkv, start.Unix())
+		logger := l.LogForRequest(l.Log, r).New(logkv...)
+		logger.Debug(prefix + "begin request")
 		writer := &loggingResponseWriter{ResponseWriter: w, status: 200}
 		defer func() {
 			end := time.Now()
 			stack := debug.Stack()
 			if err := recover(); err == nil {
 				//l.Debugf("%d %s %s %s %s", writer.status, r.Method, r.URL.String(), r.RemoteAddr, end.Sub(start))
-				logger.Debug("request finished", "status", writer.status, "time", end.Sub(start).String())
+				logger.Debug(prefix+"request finished", "status", writer.status, "end", end.Unix(), "time", end.Sub(start).String())
 			} else {
-				logger.Debug("request error", "status", writer.status, "err", err, "time", end.Sub(start).String(), "st", string(stack))
+				logger.Debug(prefix+"request error", "status", writer.status, "err", err, "end", end.Unix(), "time", end.Sub(start).String(), "st", string(stack))
 			}
 		}()
 		h.ServeHTTP(writer, r)

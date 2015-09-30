@@ -35,7 +35,7 @@ func StartAdmin(globals *config.Globals) {
 		FileServer(http.Dir(globals.Config.AdminPanel.StaticDir), globals.Debug)))
 	http.Handle("/favicon.ico", FileServer(http.Dir(globals.Config.AdminPanel.StaticDir), globals.Debug))
 
-	http.Handle("/", common.LogHandler(CsrfHandler(SessionHandler(appRouter))))
+	http.Handle("/", common.LogHandler(CsrfHandler(SessionHandler(appRouter)), "admin:", "module", "admin"))
 
 	if globals.Config.AdminPanel.HTTPSAddress != "" {
 		log.Info("admin.StartAdmin Listen HTTPS ", "port", globals.Config.AdminPanel.HTTPSAddress)
