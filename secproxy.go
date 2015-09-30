@@ -12,12 +12,14 @@ import (
 	"os/signal"
 	"runtime"
 	"syscall"
+	"time"
 )
 
 // http://localhost:8000/debug/vars
 
 func main() {
 	log := logging.NewLogger("main")
+	startTime := time.Now()
 
 	log.Info("Starting secproxy... ", "ver", config.AppVersion)
 	log.Info("Copyright (c) Karol Będkowski, 2015")
@@ -62,4 +64,10 @@ func main() {
 
 	log.Info("Starting Admin Panel...")
 	admin.StartAdmin(globals)
+
+	log.Info("Admin Panel started")
+	log.Info("SecProxy ready", "startup_time", time.Now().Sub(startTime))
+
+	done := make(chan bool)
+	<-done
 }
