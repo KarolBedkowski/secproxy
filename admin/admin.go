@@ -17,6 +17,8 @@ var (
 
 func StartAdmin(globals *config.Globals) {
 
+	debug := logging.DebugLevel() > 0
+
 	InitSessionStore(globals.Config)
 	appRouter.HandleFunc("/", SecurityContextHandler(mainPageHandler, globals, ""))
 
@@ -32,8 +34,8 @@ func StartAdmin(globals *config.Globals) {
 	InitStatsHandlers(globals, appRouter.PathPrefix("/stats"))
 
 	http.Handle("/static/", http.StripPrefix("/static",
-		FileServer(http.Dir(globals.Config.AdminPanel.StaticDir), globals.Debug)))
-	http.Handle("/favicon.ico", FileServer(http.Dir(globals.Config.AdminPanel.StaticDir), globals.Debug))
+		FileServer(http.Dir(globals.Config.AdminPanel.StaticDir), debug)))
+	http.Handle("/favicon.ico", FileServer(http.Dir(globals.Config.AdminPanel.StaticDir), debug))
 
 	http.Handle("/", globals.StatsAdmin.Handler(common.LogHandler(CsrfHandler(SessionHandler(appRouter)), "admin:", "module", "admin")))
 
@@ -64,7 +66,7 @@ func StartAdmin(globals *config.Globals) {
 
 func mainPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
 	//	RenderTemplateStd(w, bctx, "index.tmpl")
-	http.Redirect(w, r, "/stats", http.StatusFound)
+	http.Redirect(w, r, "/stats/", http.StatusFound)
 }
 
 // GetNamedURL - Return url for named route and parameters

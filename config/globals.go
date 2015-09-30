@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"encoding/gob"
+	"flag"
 	"github.com/cznic/kv"
 	"github.com/thoas/stats"
 	"io"
@@ -14,10 +15,8 @@ import (
 
 type (
 	Globals struct {
-		Debug        bool
 		Config       *AppConfiguration
 		confFilename string
-		LogFilename  string
 
 		db          *kv.DB
 		StatsAdmin  *stats.Stats
@@ -30,13 +29,13 @@ type (
 var (
 	userPrefix     = []byte("U_")
 	endpointPrefix = []byte("E_")
+
+	configFilename = flag.String("config", "./config.toml", "Configuration file name")
 )
 
-func NewGlobals(confFilename string, debug int, logFilename string) *Globals {
+func NewGlobals() *Globals {
 	globals := &Globals{}
-	globals.confFilename = confFilename
-	globals.Debug = debug > 0
-	globals.LogFilename = logFilename
+	globals.confFilename = *configFilename
 	globals.ReloadConfig()
 	globals.StatsServer = stats.New()
 	globals.StatsAdmin = stats.New()

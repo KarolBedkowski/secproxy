@@ -2,6 +2,7 @@ package admin
 
 import (
 	"io/ioutil"
+	"k.prv/secproxy/logging"
 	"net/http"
 )
 
@@ -13,7 +14,7 @@ func logsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 		BasePageContext: bctx,
 	}
 
-	if content, err := ioutil.ReadFile(bctx.Globals.LogFilename); err == nil {
+	if content, err := ioutil.ReadFile(logging.LogFilename()); err == nil {
 		ctx.Log = string(content)
 	} else {
 		ctx.Log = "Loading log file error: " + err.Error()

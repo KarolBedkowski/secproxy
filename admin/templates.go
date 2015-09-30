@@ -3,6 +3,7 @@ package admin
 import (
 	"html/template"
 	"io/ioutil"
+	"k.prv/secproxy/logging"
 	res "k.prv/secproxy/resources"
 	"net/http"
 	"os"
@@ -63,8 +64,7 @@ func getTemplate(name string, debug bool, filenames ...string) (tmpl *template.T
 
 // RenderTemplate - render given templates.
 func RenderTemplate(w http.ResponseWriter, ctx PageContextInterface, name string, filenames ...string) {
-	globals := ctx.GetGlobals()
-	ctemplate := getTemplate(name, globals.Debug, filenames...)
+	ctemplate := getTemplate(name, logging.DebugLevel() > 0, filenames...)
 	if ctemplate == nil {
 		return
 	}

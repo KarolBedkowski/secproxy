@@ -22,16 +22,10 @@ func main() {
 	log.Info("Starting secproxy... ", "ver", config.AppVersion)
 	log.Info("Copyright (c) Karol Będkowski, 2015")
 
-	configFilename := flag.String("config", "./config.toml", "Configuration filename")
-	debug := flag.Int("debug", 1, "Run in debug mode (1) or normal (0)")
-	forceLocalFiles := flag.Bool("forceLocalFiles", false, "Force use local files instead of embended assets")
-	localFilesPath := flag.String("localFilesPath", ".", "Path to static and templates directory")
-	logFilename := flag.String("log", "./secproxy.log", "Log file name")
 	flag.Parse()
 
-	logging.Init(*logFilename, *debug)
-
-	globals := config.NewGlobals(*configFilename, *debug, *logFilename)
+	logging.Init()
+	globals := config.NewGlobals()
 
 	defer func() {
 		if e := recover(); e != nil {
@@ -48,14 +42,10 @@ func main() {
 		os.Exit(0)
 	}()
 
-	log.Info("Configuration loaded", "debug", globals.Debug)
+	log.Info("Setting maxprocs", "numcpu", runtime.NumCPU())
+	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	if !globals.Debug {
-		log.Info("Setting maxprocs", "numcpu", runtime.NumCPU())
-		runtime.GOMAXPROCS(runtime.NumCPU())
-	}
-
-	if resources.Init(*forceLocalFiles, *localFilesPath) {
+	if resources.Init() {
 		log.Info("Using embended resources...")
 	} else {
 		log.Info("Using local files...")

@@ -1,16 +1,19 @@
 package logging
 
 import (
+	"flag"
 	log "gopkg.in/inconshreveable/log15.v2"
 	"net/http"
 	"os"
 )
 
 var (
-	Log = log.New()
+	Log         = log.New()
+	logFilename = *flag.String("log", "./secproxy.log", "Log file name")
+	debug       = *flag.Int("debug", 0, "Run in normal mode (0), debug mode (1) or verbose mode (2)")
 )
 
-func Init(logFilename string, debug int) {
+func Init() {
 	filehandler := log.Must.FileHandler(logFilename, log.LogfmtFormat())
 	handler := log.MultiHandler(
 		filehandler,
@@ -20,10 +23,18 @@ func Init(logFilename string, debug int) {
 	} else {
 		handler = log.CallerFileHandler(handler)
 	}
-	if debug == 0 {
+	if debug < 1 {
 		handler = log.LvlFilterHandler(log.LvlInfo, handler)
 	}
 	log.Root().SetHandler(handler)
+}
+
+func LogFilename() string {
+	return logFilename
+}
+
+func DebugLevel() int {
+	return debug
 }
 
 func Debug(msg string, args ...interface{}) {
