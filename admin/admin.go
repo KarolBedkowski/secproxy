@@ -24,18 +24,18 @@ func StartAdmin(globals *config.Globals) {
 	appRouter.HandleFunc("/logout", logoffHandler)
 	appRouter.HandleFunc("/chpass", SecurityContextHandler(chpassPageHandler, globals, ""))
 
-	appRouter.HandleFunc("/stats", ContextHandler(statsPageHandler, globals))
 	appRouter.HandleFunc("/logs", SecurityContextHandler(logsPageHandler, globals, "ADMIN"))
 
 	InitUsersHandlers(globals, appRouter.PathPrefix("/users"))
 	InitEndpointsHandlers(globals, appRouter.PathPrefix("/endpoints"))
 	InitCertsHandlers(globals, appRouter.PathPrefix("/certs"))
+	InitStatsHandlers(globals, appRouter.PathPrefix("/stats"))
 
 	http.Handle("/static/", http.StripPrefix("/static",
 		FileServer(http.Dir(globals.Config.AdminPanel.StaticDir), globals.Debug)))
 	http.Handle("/favicon.ico", FileServer(http.Dir(globals.Config.AdminPanel.StaticDir), globals.Debug))
 
-	http.Handle("/", common.LogHandler(CsrfHandler(SessionHandler(appRouter)), "admin:", "module", "admin"))
+	http.Handle("/", globals.StatsAdmin.Handler(common.LogHandler(CsrfHandler(SessionHandler(appRouter)), "admin:", "module", "admin")))
 
 	if globals.Config.AdminPanel.HTTPSAddress != "" {
 		log.Info("admin.StartAdmin Listen HTTPS ", "port", globals.Config.AdminPanel.HTTPSAddress)

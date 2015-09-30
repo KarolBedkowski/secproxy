@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"github.com/cznic/kv"
+	"github.com/thoas/stats"
 	"io"
 	"k.prv/secproxy/common"
 	"os"
@@ -18,7 +19,9 @@ type (
 		confFilename string
 		LogFilename  string
 
-		db *kv.DB
+		db          *kv.DB
+		StatsAdmin  *stats.Stats
+		StatsServer *stats.Stats
 
 		mu sync.RWMutex
 	}
@@ -35,6 +38,8 @@ func NewGlobals(confFilename string, debug int, logFilename string) *Globals {
 	globals.Debug = debug > 0
 	globals.LogFilename = logFilename
 	globals.ReloadConfig()
+	globals.StatsServer = stats.New()
+	globals.StatsAdmin = stats.New()
 	return globals
 }
 

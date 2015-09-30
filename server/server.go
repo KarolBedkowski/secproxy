@@ -79,6 +79,7 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 	handler = authenticationMW(handler, name, globals)
 	handler = counterMw(handler, name)
 	handler = common.LogHandler(handler, "server:", "endpoint", name, "module", "server")
+	handler = globals.StatsServer.Handler(handler)
 
 	if conf.HTTPAddress != "" {
 		log.Info("server.StartEndpoint starting http", "endpoint", name)

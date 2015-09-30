@@ -1,7 +1,10 @@
 package admin
 
 import (
+	"encoding/json"
 	"expvar"
+	"github.com/gorilla/mux"
+	"k.prv/secproxy/config"
 	"net/http"
 )
 
@@ -15,6 +18,14 @@ type stat struct {
 	StatusSSL    interface{}
 	Error        interface{}
 	ErrorSSL     interface{}
+}
+
+// Init - Initialize application
+func InitStatsHandlers(globals *config.Globals, parentRotuer *mux.Route) {
+	router := parentRotuer.Subrouter()
+	router.HandleFunc("/", SecurityContextHandler(statsPageHandler, globals, ""))
+	router.HandleFunc("/server", ContextHandler(statsServerPageHandler, globals))
+	router.HandleFunc("/admin", ContextHandler(statsAdminPageHandler, globals))
 }
 
 func statsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
@@ -46,4 +57,16 @@ func statsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 	}
 
 	RenderTemplateStd(w, ctx, "stats.tmpl")
+}
+
+func statsAdminPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
+	w.Header().Set("Content-Type", "application/json")
+	b, _ := json.Marshal(bctx.Globals.StatsAdmin.Data())
+	w.Write(b)
+}
+
+func statsServerPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
+	w.Header().Set("Content-Type", "application/json")
+	b, _ := json.Marshal(bctx.Globals.StatsServer.Data())
+	w.Write(b)
 }

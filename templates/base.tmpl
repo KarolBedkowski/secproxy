@@ -28,7 +28,7 @@
 							{{ if $ctx.HasUserRole "ADMIN" }}
 							<li {{ if $ctx.URLStartsWith "/endpoints" }} class="uk-active" {{ end }}><a href="/endpoints/">Configuration</a></li>
 							{{ end }}
-							<li{{ if $ctx.URLStartsWith "/stats" }} class="uk-active" {{ end }}><a href="/stats">Stats</a></li>
+							<li{{ if $ctx.URLStartsWith "/stats" }} class="uk-active" {{ end }}><a href="/stats/">Stats</a></li>
 							{{ if $ctx.HasUserRole "ADMIN" }}
 							<li class="uk-nav-header">Admin</li>
 							<li{{ if $ctx.URLStartsWith "/users" }} class="uk-active" {{ end }} ><a href="/users/">Users</a></li>
