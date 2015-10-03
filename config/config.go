@@ -65,7 +65,7 @@ func LoadConfiguration(filename string) (conf *AppConfiguration, err error) {
 // SaveConfiguration write current configuration to json file
 func (ac *AppConfiguration) SaveConfiguration(filename string) error {
 	log.Info("config.SaveConfiguration", "filename", filename)
-	data, err := toml.Marshal(ac)
+	data, err := toml.Marshal(*ac)
 	if err != nil {
 		log.Error("config.SaveConfiguration Marshal", "filename", filename, "err", err, "conf", ac)
 		return err
@@ -92,4 +92,13 @@ func (ac *AppConfiguration) loadDefaults() {
 
 func (ac *AppConfiguration) validate() bool {
 	return true
+}
+
+func (ac *AppConfiguration) String() string {
+	data, err := toml.Marshal(*ac)
+	if err != nil {
+		log.Error("config.String Marshal error", "err", err, "conf", ac)
+		return err.Error()
+	}
+	return string(data)
 }

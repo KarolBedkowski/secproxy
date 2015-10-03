@@ -12,15 +12,18 @@ func InitSettingsHandlers(globals *config.Globals, parentRotuer *mux.Route) {
 	router := parentRotuer.Subrouter()
 	router.HandleFunc("/", SecurityContextHandler(settingsPageHandler, globals, "ADMIN"))
 	router.HandleFunc("/setdebug", SecurityContextHandler(setdebugPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/confreload", SecurityContextHandler(confReloadPageHandler, globals, "ADMIN"))
 }
 
 func settingsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
 	ctx := &struct {
 		*BasePageContext
-		LogLevel int
+		LogLevel      int
+		Configuration string
 	}{
 		BasePageContext: bctx,
 		LogLevel:        logging.DebugLevel(),
+		Configuration:   bctx.Globals.Config.String(),
 	}
 
 	RenderTemplateStd(w, ctx, "settings.tmpl")
@@ -54,4 +57,12 @@ func setdebugPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 		bctx.Save()
 	}
 	http.Redirect(w, r, "/settings/", http.StatusFound)
+}
+
+func confReloadPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
+	bctx.Globals.ReloadConfig()
+	bctx.AddFlashMessage("Configuration reloaded", "success")
+	bctx.Save()
+	http.Redirect(w, r, "/settings/", http.StatusFound)
+
 }
