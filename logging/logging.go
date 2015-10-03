@@ -8,13 +8,22 @@ import (
 )
 
 var (
-	Log         = log.New()
-	logFilename = *flag.String("log", "./secproxy.log", "Log file name")
-	debug       = *flag.Int("debug", 0, "Run in normal mode (0), debug mode (1) or verbose mode (2)")
+	Log          = log.New()
+	logFilenameF = flag.String("log", "./secproxy.log", "Log file name")
+	debugF       = flag.Int("debug", 0, "Run in normal mode (0), debug mode (1) or verbose mode (2)")
+	logFilename  string
+	debug        = 0
 )
 
 func Init() {
-	filehandler := log.Must.FileHandler(logFilename, log.LogfmtFormat())
+	setSettings(*debugF, *logFilenameF)
+}
+
+func setSettings(level int, filename string) {
+	logFilename = filename
+	debug = level
+
+	filehandler := log.Must.FileHandler(filename, log.LogfmtFormat())
 	handler := log.MultiHandler(
 		filehandler,
 		log.StreamHandler(os.Stderr, log.TerminalFormat()))
@@ -40,8 +49,7 @@ func DebugLevel() int {
 
 func SetDebugLevel(level int) (ok bool) {
 	if level != debug {
-		debug = level
-		Init()
+		setSettings(level, logFilename)
 		ok = true
 	}
 	return
