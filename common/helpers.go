@@ -1,7 +1,7 @@
 package common
 
 import (
-	"k.prv/rpimon/helpers/logging"
+	"k.prv/secproxy/logging"
 	nurl "net/url"
 	"os"
 )
