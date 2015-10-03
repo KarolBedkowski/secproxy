@@ -1,7 +1,7 @@
 VERSION=`git describe --always`
 DATE=`date`
 LDFLAGS="-X k.prv/secproxy/config.AppVersion '$(VERSION) - $(DATE)'"
-GOBUILD=go
+GOBUILD=godep go
 
 .PHONY: resources build certs
 
