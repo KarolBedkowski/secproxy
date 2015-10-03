@@ -5,8 +5,8 @@ import (
 	"k.prv/secproxy/admin"
 	"k.prv/secproxy/config"
 	"k.prv/secproxy/logging"
+	"k.prv/secproxy/proxy"
 	"k.prv/secproxy/resources"
-	"k.prv/secproxy/server"
 	// _ "net/http/pprof" // /debug/pprof/
 	"os"
 	"os/signal"
@@ -57,7 +57,7 @@ func main() {
 	for _, ep := range globals.GetEndpoints() {
 		if ep.Autostart {
 			log.Info("Starting endpoint", "endpoint", ep.Name)
-			server.StartEndpoint(ep.Name, globals)
+			proxy.StartEndpoint(ep.Name, globals)
 		}
 	}
 	log.Info("All endpoints started")

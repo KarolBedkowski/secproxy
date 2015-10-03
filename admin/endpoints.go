@@ -4,7 +4,7 @@ import (
 	"github.com/gorilla/mux"
 	"k.prv/secproxy/config"
 	"k.prv/secproxy/logging"
-	"k.prv/secproxy/server"
+	"k.prv/secproxy/proxy"
 	"net/http"
 	"strings"
 )
@@ -39,11 +39,11 @@ func endpointsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePage
 		ctx.Endpoints = append(ctx.Endpoints,
 			&endpoint{
 				ep.Name,
-				server.EndpointRunning(ep.Name),
+				proxy.EndpointRunning(ep.Name),
 				ep.HTTPAddress,
 				ep.HTTPSAddress,
 				ep.Destination,
-				server.EndpointErrors(ep.Name),
+				proxy.EndpointErrors(ep.Name),
 			})
 	}
 	RenderTemplateStd(w, ctx, "endpoints/index.tmpl")
@@ -145,7 +145,7 @@ func endpointActionPageHandler(w http.ResponseWriter, r *http.Request, bctx *Bas
 
 	switch action {
 	case "start":
-		err := server.StartEndpoint(epname, bctx.Globals)
+		err := proxy.StartEndpoint(epname, bctx.Globals)
 		if len(err) == 0 {
 			bctx.AddFlashMessage("Endpoint started", "success")
 		} else {
@@ -153,11 +153,11 @@ func endpointActionPageHandler(w http.ResponseWriter, r *http.Request, bctx *Bas
 		}
 		break
 	case "stop":
-		server.StopEndpoint(epname)
+		proxy.StopEndpoint(epname)
 		bctx.AddFlashMessage("Endpoint stopped", "success")
 		break
 	case "delete":
-		server.StopEndpoint(epname)
+		proxy.StopEndpoint(epname)
 		bctx.Globals.DeleteEndpoint(epname)
 		bctx.AddFlashMessage("Endpoint deleted", "success")
 		break
