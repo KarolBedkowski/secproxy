@@ -164,6 +164,11 @@ func chpassPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCon
 			ctx.Form.Errors["NewPassword"] = "Passwords not match"
 			break
 		}
+
+		if user.Login == "admin" {
+			user.Active = true
+		}
+
 		user.UpdatePassword(ctx.Form.NewPassword)
 		bctx.Globals.SaveUser(user)
 		ctx.AddFlashMessage("Password updated", "success")

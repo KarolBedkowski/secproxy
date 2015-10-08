@@ -91,15 +91,22 @@ func (g *Globals) openDatabases() {
 		log.Error("config.g open db error", "err", err)
 		panic("config.g open  db error " + err.Error())
 	}
-	if g.GetUser("admin") == nil {
+	if u := g.GetUser("admin"); u == nil {
 		log.Info("config.g openDatabases creating 'admin' user with password 'admin'")
 		admin := &User{
-			Login: "admin",
-			Name:  "Administrator",
-			Role:  "ADMIN",
+			Login:  "admin",
+			Name:   "Administrator",
+			Role:   "ADMIN",
+			Active: true,
 		}
 		admin.UpdatePassword("admin")
 		g.SaveUser(admin)
+	} else {
+		if !u.Active {
+			log.Warn("config.g openDatabases re-active Admin user")
+			u.Active = true
+			g.SaveUser(u)
+		}
 	}
 	if g.GetUser("admin") == nil {
 		panic("missing admin")
