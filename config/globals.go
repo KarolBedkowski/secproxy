@@ -134,12 +134,11 @@ func decodeUser(buff []byte) (u *User) {
 	u = &User{}
 	r := bytes.NewBuffer(buff)
 	dec := gob.NewDecoder(r)
-	if err := dec.Decode(u); err == nil {
-		return u
-	} else {
+	if err := dec.Decode(u); err != nil {
 		log.Warn("globals.decodeUser decode error", "err", err)
+		return nil
 	}
-	return nil
+	return u
 }
 
 func (g *Globals) SaveUser(u *User) {
@@ -183,11 +182,10 @@ func decodeEndpoint(buff []byte) (ec *EndpointConf) {
 	r := bytes.NewBuffer(buff)
 	dec := gob.NewDecoder(r)
 	if err := dec.Decode(ec); err == nil {
-		return ec
-	} else {
 		log.Warn("globals.decodeEndpoint decode error", "err", err)
+		return nil
 	}
-	return nil
+	return ec
 }
 
 func (g *Globals) GetEndpoint(name string) (e *EndpointConf) {

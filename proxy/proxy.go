@@ -31,10 +31,10 @@ func (v varState) String() string {
 }
 
 var (
-	states   map[string]*state = make(map[string]*state)
-	counters                   = expvar.NewMap("counters")
-	servStat                   = expvar.NewMap("states")
-	errors                     = expvar.NewMap("errors")
+	states   = make(map[string]*state)
+	counters = expvar.NewMap("counters")
+	servStat = expvar.NewMap("states")
+	errors   = expvar.NewMap("errors")
 	mu       sync.RWMutex
 
 	log = logging.NewLogger("server")

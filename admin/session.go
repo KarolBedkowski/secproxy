@@ -77,8 +77,8 @@ type MySession struct {
 }
 
 // GetLoggerUser return login and permission of logged user
-func (session *MySession) GetLoggedUser() (user *SessionUser, ok bool) {
-	val := session.Values[sessionLoggedUserKey]
+func (s *MySession) GetLoggedUser() (user *SessionUser, ok bool) {
+	val := s.Values[sessionLoggedUserKey]
 	user, ok = val.(*SessionUser)
 	return
 }

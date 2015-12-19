@@ -7,6 +7,8 @@ import (
 	"net/http"
 )
 
+var loggerSett = logging.NewLogger("web")
+
 // Init - Initialize application
 func InitSettingsHandlers(globals *config.Globals, parentRotuer *mux.Route) {
 	router := parentRotuer.Subrouter()
@@ -47,12 +49,13 @@ func setdebugPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 		res = logging.SetDebugLevel(2)
 		break
 	default:
-		logging.LogForRequest(logCerts, r).Warn("setdebugPageHandler missing level", "form", r.Form)
+		logging.LogForRequest(loggerSett, r).Warn("setdebugPageHandler missing level", "form", r.Form)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
 	if res {
+		logging.LogForRequest(loggerSett, r).Warn("setdebugPageHandler change level", "level", level)
 		bctx.AddFlashMessage("Logging level changed", "success")
 		bctx.Save()
 	}
