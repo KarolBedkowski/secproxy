@@ -373,3 +373,9 @@
 
     return UI.slideshow.animations;
 });
+r[--i], arr[i] = arr[j], arr[j] = x) {}
+        return arr;
+    };
+
+    return UI.slideshow.animations;
+});

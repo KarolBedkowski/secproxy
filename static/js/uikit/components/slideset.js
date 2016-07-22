@@ -500,3 +500,32 @@
     }
 
 });
+0, n = [];
+
+        if (size < 1) return null;
+
+        while (i < l) {
+
+            x = i % size;
+
+            if(x) {
+                n[c][x] = input[i];
+            } else {
+                n[++c] = [input[i]];
+            }
+
+            i++;
+        }
+
+        i = 0;
+        l = n.length;
+
+        while (i < l) {
+            n[i] = jQuery(n[i]);
+            i++;
+        }
+
+        return n;
+    }
+
+});

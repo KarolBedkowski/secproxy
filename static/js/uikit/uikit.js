@@ -1,4 +1,4 @@
-/*! UIkit 2.22.0 | http://www.getuikit.com | (c) 2014 YOOtheme | MIT License */
+/*! UIkit 2.26.4 | http://www.getuikit.com | (c) 2014 YOOtheme | MIT License */
 (function(core) {
 
     if (typeof define == "function" && define.amd) { // AMD
@@ -44,7 +44,7 @@
 
     var UI = {}, _UI = global.UIkit ? Object.create(global.UIkit) : undefined;
 
-    UI.version = '2.22.0';
+    UI.version = '2.26.4';
 
     UI.noConflict = function() {
         // restore UIkit version
@@ -110,27 +110,30 @@
     })();
 
     // requestAnimationFrame polyfill
-    // https://gist.github.com/paulirish/1579671
-    (function(){
+    //https://github.com/darius/requestAnimationFrame
+    (function() {
 
-        var lastTime = 0;
+        Date.now = Date.now || function() { return new Date().getTime(); };
 
-        global.requestAnimationFrame = global.requestAnimationFrame || global.webkitRequestAnimationFrame || function(callback, element) {
-            var currTime = new Date().getTime();
-            var timeToCall = Math.max(0, 16 - (currTime - lastTime));
-            var id = global.setTimeout(function() { callback(currTime + timeToCall); }, timeToCall);
-            lastTime = currTime + timeToCall;
-            return id;
-        };
-
-        if (!global.cancelAnimationFrame) {
-
-            global.cancelAnimationFrame = function(id) {
-                clearTimeout(id);
-            };
+        var vendors = ['webkit', 'moz'];
+        for (var i = 0; i < vendors.length && !window.requestAnimationFrame; ++i) {
+            var vp = vendors[i];
+            window.requestAnimationFrame = window[vp+'RequestAnimationFrame'];
+            window.cancelAnimationFrame = (window[vp+'CancelAnimationFrame']
+                                       || window[vp+'CancelRequestAnimationFrame']);
         }
-
-    })();
+        if (/iP(ad|hone|od).*OS 6/.test(window.navigator.userAgent) // iOS6 is buggy
+            || !window.requestAnimationFrame || !window.cancelAnimationFrame) {
+            var lastTime = 0;
+            window.requestAnimationFrame = function(callback) {
+                var now = Date.now();
+                var nextTime = Math.max(lastTime + 16, now);
+                return setTimeout(function() { callback(lastTime = nextTime); },
+                                  nextTime - now);
+            };
+            window.cancelAnimationFrame = clearTimeout;
+        }
+    }());
 
     UI.support.touch = (
         ('ontouchstart' in document) ||
@@ -145,7 +148,7 @@
     UI.Utils = {};
 
     UI.Utils.isFullscreen = function() {
-        return document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement || document.fullscreenElement || false;
+        return document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement || document.fullscreenElement || false;
     };
 
     UI.Utils.str2json = function(str, notevil) {
@@ -176,6 +179,19 @@
             timeout = setTimeout(later, wait);
             if (callNow) func.apply(context, args);
         };
+    };
+
+    UI.Utils.throttle = function (func, limit) {
+        var wait = false;
+        return function () {
+            if (!wait) {
+                func.call();
+                wait = true;
+                setTimeout(function () {
+                    wait = false;
+                }, limit);
+            }
+        }
     };
 
     UI.Utils.removeCssRules = function(selectorRegEx) {
@@ -244,7 +260,7 @@
 
                 var ele  = UI.$(this),
                     cls  = ele.attr('class'),
-                    anim = cls.match(/uk\-animation\-(.+)/);
+                    anim = cls.match(/uk-animation-(.+)/);
 
                 ele.removeClass(anim[0]).width();
 
@@ -257,7 +273,11 @@
 
     UI.Utils.options = function(string) {
 
-        if ($.isPlainObject(string)) return string;
+        if ($.type(string)!='string') return string;
+
+        if (string.indexOf(':') != -1 && string.trim().substr(-1) != '}') {
+            string = '{'+string+'}';
+        }
 
         var start = (string ? string.indexOf("{") : -1), options = {};
 
@@ -275,12 +295,11 @@
         var d = $.Deferred();
 
         element = UI.$(element);
-        cls     = cls;
 
         element.css('display', 'none').addClass(cls).one(UI.support.animation.end, function() {
             element.removeClass(cls);
             d.resolve();
-        }).width();
+        });
 
         element.css('display', '');
 
@@ -588,7 +607,7 @@
                 var observer = new UI.support.mutationobserver(UI.Utils.debounce(function(mutations) {
                     fn.apply(element, []);
                     $element.trigger('changed.uk.dom');
-                }, 50));
+                }, 50), {childList: true, subtree: true});
 
                 // pass in the target node, as well as the observer options
                 observer.observe(element, { childList: true, subtree: true });
@@ -615,84 +634,126 @@
         if (UI.domready) UI.Utils.checkDisplay();
     });
 
-    $(function(){
+    document.addEventListener('DOMContentLoaded', function(){
 
-        UI.$body = UI.$('body');
+        var domReady = function() {
 
-        UI.ready(function(context){
-            UI.domObserve('[data-uk-observe]');
-        });
+            UI.$body = UI.$('body');
 
-        UI.on('changed.uk.dom', function(e) {
-            UI.init(e.target);
-            UI.Utils.checkDisplay(e.target);
-        });
+            UI.trigger('beforeready.uk.dom');
 
-        UI.trigger('beforeready.uk.dom');
+            UI.component.bootComponents();
 
-        UI.component.bootComponents();
+            // custom scroll observer
+            var rafToken = requestAnimationFrame((function(){
 
-        // custom scroll observer
-        setInterval((function(){
+                var memory = {dir: {x:0, y:0}, x: window.pageXOffset, y:window.pageYOffset};
 
-            var memory = {x: window.pageXOffset, y:window.pageYOffset}, dir;
+                var fn = function(){
+                    // reading this (window.page[X|Y]Offset) causes a full page recalc of the layout in Chrome,
+                    // so we only want to do this once
+                    var wpxo = window.pageXOffset;
+                    var wpyo = window.pageYOffset;
 
-            var fn = function(){
+                    // Did the scroll position change since the last time we were here?
+                    if (memory.x != wpxo || memory.y != wpyo) {
 
-                if (memory.x != window.pageXOffset || memory.y != window.pageYOffset) {
+                        // Set the direction of the scroll and store the new position
+                        if (wpxo != memory.x) {memory.dir.x = wpxo > memory.x ? 1:-1; } else { memory.dir.x = 0; }
+                        if (wpyo != memory.y) {memory.dir.y = wpyo > memory.y ? 1:-1; } else { memory.dir.y = 0; }
 
-                    dir = {x: 0 , y: 0};
+                        memory.x = wpxo;
+                        memory.y = wpyo;
 
-                    if (window.pageXOffset != memory.x) dir.x = window.pageXOffset > memory.x ? 1:-1;
-                    if (window.pageYOffset != memory.y) dir.y = window.pageYOffset > memory.y ? 1:-1;
+                        // Trigger the scroll event, this could probably be sent using memory.clone() but this is
+                        // more explicit and easier to see exactly what is being sent in the event.
+                        UI.$doc.trigger('scrolling.uk.document', [{
+                            "dir": {"x": memory.dir.x, "y": memory.dir.y}, "x": wpxo, "y": wpyo
+                        }]);
+                    }
 
-                    memory = {
-                        "dir": dir, "x": window.pageXOffset, "y": window.pageYOffset
-                    };
+                    cancelAnimationFrame(rafToken);
+                    rafToken = requestAnimationFrame(fn);
+                };
 
-                    UI.$doc.trigger('scrolling.uk.document', [memory]);
+                if (UI.support.touch) {
+                    UI.$html.on('touchmove touchend MSPointerMove MSPointerUp pointermove pointerup', fn);
                 }
-            };
+
+                if (memory.x || memory.y) fn();
+
+                return fn;
+
+            })());
+
+            // run component init functions on dom
+            UI.trigger('domready.uk.dom');
 
             if (UI.support.touch) {
-                UI.$html.on('touchmove touchend MSPointerMove MSPointerUp pointermove pointerup', fn);
+
+                // remove css hover rules for touch devices
+                // UI.Utils.removeCssRules(/\.uk-(?!navbar).*:hover/);
+
+                // viewport unit fix for uk-height-viewport - should be fixed in iOS 8
+                if (navigator.userAgent.match(/(iPad|iPhone|iPod)/g)) {
+
+                    UI.$win.on('load orientationchange resize', UI.Utils.debounce((function(){
+
+                        var fn = function() {
+                            $('.uk-height-viewport').css('height', window.innerHeight);
+                            return fn;
+                        };
+
+                        return fn();
+
+                    })(), 100));
+                }
             }
 
-            if (memory.x || memory.y) fn();
+            UI.trigger('afterready.uk.dom');
 
-            return fn;
+            // mark that domready is left behind
+            UI.domready = true;
 
-        })(), 15);
+            // auto init js components
+            if (UI.support.mutationobserver) {
 
-        // run component init functions on dom
-        UI.trigger('domready.uk.dom');
+                var initFn = UI.Utils.debounce(function(){
+                    requestAnimationFrame(function(){ UI.init(document.body);});
+                }, 10);
 
-        if (UI.support.touch) {
+                (new UI.support.mutationobserver(function(mutations) {
 
-            // remove css hover rules for touch devices
-            // UI.Utils.removeCssRules(/\.uk-(?!navbar).*:hover/);
+                    var init = false;
 
-            // viewport unit fix for uk-height-viewport - should be fixed in iOS 8
-            if (navigator.userAgent.match(/(iPad|iPhone|iPod)/g)) {
+                    mutations.every(function(mutation){
 
-                UI.$win.on('load orientationchange resize', UI.Utils.debounce((function(){
+                        if (mutation.type != 'childList') return true;
 
-                    var fn = function() {
-                        $('.uk-height-viewport').css('height', window.innerHeight);
-                        return fn;
-                    };
+                        for (var i = 0, node; i < mutation.addedNodes.length; ++i) {
 
-                    return fn();
+                            node = mutation.addedNodes[i];
 
-                })(), 100));
+                            if (node.outerHTML && node.outerHTML.indexOf('data-uk-') !== -1) {
+                                return (init = true) && false;
+                            }
+                        }
+                        return true;
+                    });
+
+                    if (init) initFn();
+
+                })).observe(document.body, {childList: true, subtree: true});
             }
+        };
+
+        if (document.readyState == 'complete' || document.readyState == 'interactive') {
+            setTimeout(domReady);
         }
 
-        UI.trigger('afterready.uk.dom');
+        return domReady;
 
-        // mark that domready is left behind
-        UI.domready = true;
-    });
+    }());
 
     // add touch identifier class
     UI.$html.addClass(UI.support.touch ? "uk-touch" : "uk-notouch");
@@ -744,7 +805,7 @@
   function longTap() {
     longTapTimeout = null;
     if (touch.last) {
-      touch.el.trigger('longTap');
+      if ( touch.el !== undefined ) touch.el.trigger('longTap');
       touch = {};
     }
   }
@@ -780,7 +841,7 @@
 
         var swipeDirectionFromVelocity = e.originalEvent.velocityX > 1 ? 'Right' : e.originalEvent.velocityX < -1 ? 'Left' : e.originalEvent.velocityY > 1 ? 'Down' : e.originalEvent.velocityY < -1 ? 'Up' : null;
 
-        if (swipeDirectionFromVelocity) {
+        if (swipeDirectionFromVelocity && touch.el !== undefined) {
           touch.el.trigger('swipe');
           touch.el.trigger('swipe'+ swipeDirectionFromVelocity);
         }
@@ -840,8 +901,10 @@
         if ((touch.x2 && Math.abs(touch.x1 - touch.x2) > 30) || (touch.y2 && Math.abs(touch.y1 - touch.y2) > 30)){
 
           swipeTimeout = setTimeout(function() {
-            touch.el.trigger('swipe');
-            touch.el.trigger('swipe' + (swipeDirection(touch.x1, touch.x2, touch.y1, touch.y2)));
+            if ( touch.el !== undefined ) {
+              touch.el.trigger('swipe');
+              touch.el.trigger('swipe' + (swipeDirection(touch.x1, touch.x2, touch.y1, touch.y2)));
+            }
             touch = {};
           }, 0);
 
@@ -859,11 +922,11 @@
               // (cancelTouch cancels processing of single vs double taps for faster 'tap' response)
               var event = $.Event('tap');
               event.cancelTouch = cancelAll;
-              touch.el.trigger(event);
+              if ( touch.el !== undefined ) touch.el.trigger(event);
 
               // trigger double tap immediately
               if (touch.isDoubleTap) {
-                touch.el.trigger('doubleTap');
+                if ( touch.el !== undefined ) touch.el.trigger('doubleTap');
                 touch = {};
               }
 
@@ -871,7 +934,7 @@
               else {
                 touchTimeout = setTimeout(function(){
                   touchTimeout = null;
-                  touch.el.trigger('singleTap');
+                  if ( touch.el !== undefined ) touch.el.trigger('singleTap');
                   touch = {};
                 }, 250);
               }
@@ -906,7 +969,9 @@
     UI.component('stackMargin', {
 
         defaults: {
-            'cls': 'uk-margin-small-top'
+            cls: 'uk-margin-small-top',
+            rowfirst: false,
+            observe: false
         },
 
         boot: function() {
@@ -916,10 +981,10 @@
 
                 UI.$("[data-uk-margin]", context).each(function() {
 
-                    var ele = UI.$(this), obj;
+                    var ele = UI.$(this);
 
                     if (!ele.data("stackMargin")) {
-                        obj = UI.stackMargin(ele, UI.Utils.options(ele.attr("data-uk-margin")));
+                        UI.stackMargin(ele, UI.Utils.options(ele.attr("data-uk-margin")));
                     }
                 });
             });
@@ -928,8 +993,6 @@
         init: function() {
 
             var $this = this;
-
-            this.columns = [];
 
             UI.$win.on('resize orientationchange', (function() {
 
@@ -945,30 +1008,49 @@
                 return UI.Utils.debounce(fn, 20);
             })());
 
-            UI.$html.on("changed.uk.dom", function(e) {
-                $this.process();
-            });
-
             this.on("display.uk.check", function(e) {
                 if (this.element.is(":visible")) this.process();
             }.bind(this));
+
+            if (this.options.observe) {
+
+                UI.domObserve(this.element, function(e) {
+                    if ($this.element.is(":visible")) $this.process();
+                });
+            }
 
             stacks.push(this);
         },
 
         process: function() {
 
-            this.columns = this.element.children();
+            var $this = this, columns = this.element.children();
 
-            UI.Utils.stackMargin(this.columns, this.options);
+            UI.Utils.stackMargin(columns, this.options);
 
-            return this;
-        },
+            if (!this.options.rowfirst || !columns.length) {
+                return this;
+            }
 
-        revert: function() {
-            this.columns.removeClass(this.options.cls);
+            // Mark first column elements
+            var group = {}, minleft = false;
+
+            columns.removeClass(this.options.rowfirst).each(function(offset, $ele){
+
+                $ele = UI.$(this);
+
+                if (this.style.display != 'none') {
+                    offset = $ele.offset().left;
+                    ((group[offset] = group[offset] || []) && group[offset]).push(this);
+                    minleft = minleft === false ? offset : Math.min(minleft, offset);
+                }
+            });
+
+            UI.$(group[minleft]).addClass(this.options.rowfirst);
+
             return this;
         }
+
     });
 
 
@@ -1001,7 +1083,7 @@
 
                         var ele = UI.$(this), obj;
 
-                        if (!ele.data("responsiveIframe")) {
+                        if (!ele.data("responsiveElement")) {
                             obj = UI.responsiveElement(ele, {});
                         }
                     });
@@ -1050,30 +1132,41 @@
             'cls': 'uk-margin-small-top'
         }, options);
 
-        options.cls = options.cls;
-
         elements = UI.$(elements).removeClass(options.cls);
 
-        var skip         = false,
-            firstvisible = elements.filter(":visible:first"),
-            offset       = firstvisible.length ? (firstvisible.position().top + firstvisible.outerHeight()) - 1 : false; // (-1): weird firefox bug when parent container is display:flex
+        var min = false;
 
-        if (offset === false) return;
+        elements.each(function(offset, height, pos, $ele){
 
-        elements.each(function() {
+            $ele   = UI.$(this);
 
-            var column = UI.$(this);
+            if ($ele.css('display') != 'none') {
 
-            if (column.is(":visible")) {
+                offset = $ele.offset();
+                height = $ele.outerHeight();
+                pos    = offset.top + height;
 
-                if (skip) {
-                    column.addClass(options.cls);
-                } else {
+                $ele.data({
+                    'ukMarginPos': pos,
+                    'ukMarginTop': offset.top
+                });
 
-                    if (column.position().top >= offset) {
-                        skip = column.addClass(options.cls);
-                    }
+                if (min === false || (offset.top < min.top) ) {
+
+                    min = {
+                        top  : offset.top,
+                        left : offset.left,
+                        pos  : pos
+                    };
                 }
+            }
+
+        }).each(function($ele) {
+
+            $ele   = UI.$(this);
+
+            if ($ele.css('display') != 'none' && $ele.data('ukMarginTop') > min.top && $ele.data('ukMarginPos') > min.pos) {
+                $ele.addClass(options.cls);
             }
         });
     };
@@ -1133,6 +1226,56 @@
             matchHeights(elements);
         }
     };
+
+    (function(cacheSvgs){
+
+        UI.Utils.inlineSvg = function(selector, root) {
+
+            var images = UI.$(selector || 'img[src$=".svg"]', root || document).each(function(){
+
+                var img = UI.$(this),
+                    src = img.attr('src');
+
+                if (!cacheSvgs[src]) {
+
+                    var d = UI.$.Deferred();
+
+                    UI.$.get(src, {nc: Math.random()}, function(data){
+                        d.resolve(UI.$(data).find('svg'));
+                    });
+
+                    cacheSvgs[src] = d.promise();
+                }
+
+                cacheSvgs[src].then(function(svg) {
+
+                    var $svg = UI.$(svg).clone();
+
+                    if (img.attr('id')) $svg.attr('id', img.attr('id'));
+                    if (img.attr('class')) $svg.attr('class', img.attr('class'));
+                    if (img.attr('style')) $svg.attr('style', img.attr('style'));
+
+                    if (img.attr('width')) {
+                        $svg.attr('width', img.attr('width'));
+                        if (!img.attr('height'))  $svg.removeAttr('height');
+                    }
+
+                    if (img.attr('height')){
+                        $svg.attr('height', img.attr('height'));
+                        if (!img.attr('width')) $svg.removeAttr('width');
+                    }
+
+                    img.replaceWith($svg);
+                });
+            });
+        };
+
+        // init code
+        UI.ready(function(context) {
+            UI.Utils.inlineSvg('[data-uk-svg]', context);
+        });
+
+    })({});
 
 })(UIkit);
 
@@ -1285,6 +1428,7 @@
 
                         if (element.data('scrollspy-idle')) {
                             clearTimeout(element.data('scrollspy-idle'));
+                            element.data('scrollspy-idle', false);
                         }
 
                         element.removeClass("uk-scrollspy-inview").toggleClass(toggle);
@@ -1347,7 +1491,7 @@
         init: function() {
 
             var ids     = [],
-                links   = this.find("a[href^='#']").each(function(){ ids.push(UI.$(this).attr("href")); }),
+                links   = this.find("a[href^='#']").each(function(){ if(this.getAttribute("href").trim()!=='#') ids.push(this.getAttribute("href")); }),
                 targets = UI.$(ids.join(",")),
 
                 clsActive  = this.options.cls,
@@ -1369,7 +1513,7 @@
                         scrollTop = $win.scrollTop(),
                         target = (function(){
                             for(var i=0; i< inviews.length;i++){
-                                if(inviews[i].offset().top >= scrollTop){
+                                if (inviews[i].offset().top - $this.options.topoffset >= scrollTop){
                                     return inviews[i];
                                 }
                             }
@@ -1378,7 +1522,7 @@
                     if (!target) return;
 
                     if ($this.options.closest) {
-                        links.closest(clsClosest).removeClass(clsActive);
+                        links.blur().closest(clsClosest).removeClass(clsActive);
                         navitems = links.filter("a[href='#"+target.attr("id")+"']").closest(clsClosest).addClass(clsActive);
                     } else {
                         navitems = links.removeClass(clsActive).filter("a[href='#"+target.attr("id")+"']").addClass(clsActive);
@@ -1753,17 +1897,64 @@
 
     "use strict";
 
-    var active = false, hoverIdle;
+    var active = false, hoverIdle, flips = {
+        'x': {
+            "bottom-left"   : 'bottom-right',
+            "bottom-right"  : 'bottom-left',
+            "bottom-center" : 'bottom-center',
+            "top-left"      : 'top-right',
+            "top-right"     : 'top-left',
+            "top-center"    : 'top-center',
+            "left-top"      : 'right-top',
+            "left-bottom"   : 'right-bottom',
+            "left-center"   : 'right-center',
+            "right-top"     : 'left-top',
+            "right-bottom"  : 'left-bottom',
+            "right-center"  : 'left-center'
+        },
+        'y': {
+            "bottom-left"   : 'top-left',
+            "bottom-right"  : 'top-right',
+            "bottom-center" : 'top-center',
+            "top-left"      : 'bottom-left',
+            "top-right"     : 'bottom-right',
+            "top-center"    : 'bottom-center',
+            "left-top"      : 'left-bottom',
+            "left-bottom"   : 'left-top',
+            "left-center"   : 'left-center',
+            "right-top"     : 'right-bottom',
+            "right-bottom"  : 'right-top',
+            "right-center"  : 'right-center'
+        },
+        'xy': {
+            "bottom-left"   : 'top-right',
+            "bottom-right"  : 'top-left',
+            "bottom-center" : 'top-center',
+            "top-left"      : 'bottom-right',
+            "top-right"     : 'bottom-left',
+            "top-center"    : 'bottom-center',
+            "left-top"      : 'right-bottom',
+            "left-bottom"   : 'right-top',
+            "left-center"   : 'right-center',
+            "right-top"     : 'left-bottom',
+            "right-bottom"  : 'left-top',
+            "right-center"  : 'left-center'
+        }
+    };
 
     UI.component('dropdown', {
 
         defaults: {
-           'mode'       : 'hover',
-           'remaintime' : 800,
-           'justify'    : false,
-           'boundary'   : UI.$win,
-           'delay'      : 0,
-           'hoverDelayIdle'  : 250
+           'mode'            : 'hover',
+           'pos'             : 'bottom-left',
+           'offset'          : 0,
+           'remaintime'      : 800,
+           'justify'         : false,
+           'boundary'        : UI.$win,
+           'delay'           : 0,
+           'dropdownSelector': '.uk-dropdown,.uk-dropdown-blank',
+           'hoverDelayIdle'  : 250,
+           'preventflip'     : false
         },
 
         remainIdle: false,
@@ -1785,7 +1976,7 @@
                         dropdown.element.trigger(triggerevent);
                     }
 
-                    if (dropdown.element.find('.uk-dropdown').length) {
+                    if (dropdown.element.find(dropdown.options.dropdownSelector).length) {
                         e.preventDefault();
                     }
                 }
@@ -1796,17 +1987,31 @@
 
             var $this = this;
 
-            this.dropdown  = this.find('.uk-dropdown');
+            this.dropdown     = this.find(this.options.dropdownSelector);
+            this.offsetParent = this.dropdown.parents().filter(function() {
+                return UI.$.inArray(UI.$(this).css('position'), ['relative', 'fixed', 'absolute']) !== -1;
+            }).slice(0,1);
 
             this.centered  = this.dropdown.hasClass('uk-dropdown-center');
             this.justified = this.options.justify ? UI.$(this.options.justify) : false;
 
             this.boundary  = UI.$(this.options.boundary);
-            this.flipped   = this.dropdown.hasClass('uk-dropdown-flip');
 
             if (!this.boundary.length) {
                 this.boundary = UI.$win;
             }
+
+            // legacy DEPRECATED!
+            if (this.dropdown.hasClass('uk-dropdown-up')) {
+                this.options.pos = 'top-left';
+            }
+            if (this.dropdown.hasClass('uk-dropdown-flip')) {
+                this.options.pos = this.options.pos.replace('left','right');
+            }
+            if (this.dropdown.hasClass('uk-dropdown-center')) {
+                this.options.pos = this.options.pos.replace(/(left|right)/,'center');
+            }
+            //-- end legacy
 
             // Init ARIA
             this.element.attr('aria-haspopup', 'true');
@@ -1814,11 +2019,11 @@
 
             if (this.options.mode == "click" || UI.support.touch) {
 
-                this.on("click.uikit.dropdown", function(e) {
+                this.on("click.uk.dropdown", function(e) {
 
                     var $target = UI.$(e.target);
 
-                    if (!$target.parents(".uk-dropdown").length) {
+                    if (!$target.parents($this.options.dropdownSelector).length) {
 
                         if ($target.is("a[href='#']") || $target.parent().is("a[href='#']") || ($this.dropdown.length && !$this.dropdown.is(":visible")) ){
                             e.preventDefault();
@@ -1890,6 +2095,9 @@
                     }
 
                     if (active && active == $this) {
+                        if (!$this.dropdown.find(e.target).length || $target.is(".uk-dropdown-close") || $target.parents(".uk-dropdown-close").length) {
+                            $this.hide();
+                        }
                         return;
                     }
 
@@ -1978,66 +2186,106 @@
 
             if (!this.dropdown.length) return;
 
+            // reset
+            this.dropdown.removeClass('uk-dropdown-top uk-dropdown-bottom uk-dropdown-left uk-dropdown-right uk-dropdown-stack').css({
+                'top-left':'',
+                'left':'',
+                'margin-left' :'',
+                'margin-right':''
+            });
+
             if (this.justified && this.justified.length) {
                 this.dropdown.css("min-width", "");
             }
 
-            var $this     = this,
-                dropdown  = this.dropdown.css("margin-" + UI.langdirection, ""),
-                offset    = dropdown.show().offset(),
-                width     = dropdown.outerWidth(),
+            var $this          = this,
+                pos            = UI.$.extend({}, this.offsetParent.offset(), {width: this.offsetParent[0].offsetWidth, height: this.offsetParent[0].offsetHeight}),
+                posoffset      = this.options.offset,
+                dropdown       = this.dropdown,
+                offset         = dropdown.show().offset() || {left: 0, top: 0},
+                width          = dropdown.outerWidth(),
+                height         = dropdown.outerHeight(),
                 boundarywidth  = this.boundary.width(),
-                boundaryoffset = this.boundary.offset() ? this.boundary.offset().left:0;
+                boundaryoffset = this.boundary[0] !== window && this.boundary.offset() ? this.boundary.offset(): {top:0, left:0},
+                dpos           = this.options.pos;
 
-            // centered dropdown
-            if (this.centered) {
-                dropdown.css("margin-" + UI.langdirection, (parseFloat(width) / 2 - dropdown.parent().width() / 2) * -1);
-                offset = dropdown.offset();
+            var variants =  {
+                    "bottom-left"   : {top: 0 + pos.height + posoffset, left: 0},
+                    "bottom-right"  : {top: 0 + pos.height + posoffset, left: 0 + pos.width - width},
+                    "bottom-center" : {top: 0 + pos.height + posoffset, left: 0 + pos.width / 2 - width / 2},
+                    "top-left"      : {top: 0 - height - posoffset, left: 0},
+                    "top-right"     : {top: 0 - height - posoffset, left: 0 + pos.width - width},
+                    "top-center"    : {top: 0 - height - posoffset, left: 0 + pos.width / 2 - width / 2},
+                    "left-top"      : {top: 0, left: 0 - width - posoffset},
+                    "left-bottom"   : {top: 0 + pos.height - height, left: 0 - width - posoffset},
+                    "left-center"   : {top: 0 + pos.height / 2 - height / 2, left: 0 - width - posoffset},
+                    "right-top"     : {top: 0, left: 0 + pos.width + posoffset},
+                    "right-bottom"  : {top: 0 + pos.height - height, left: 0 + pos.width + posoffset},
+                    "right-center"  : {top: 0 + pos.height / 2 - height / 2, left: 0 + pos.width + posoffset}
+                },
+                css = {},
+                pp;
 
-                // reset dropdown
-                if ((width + offset.left) > boundarywidth || offset.left < 0) {
-                    dropdown.css("margin-" + UI.langdirection, "");
-                    offset = dropdown.offset();
-                }
-            }
+            pp = dpos.split('-');
+            css = variants[dpos] ? variants[dpos] : variants['bottom-left'];
 
             // justify dropdown
             if (this.justified && this.justified.length) {
-                justify(dropdown, this.justified, boundarywidth, offset);
-                offset = dropdown.offset();
-            }
+                justify(dropdown.css({left:0}), this.justified, boundarywidth);
+            } else {
 
-            if ((width + (offset.left-boundaryoffset)) > boundarywidth) {
-                dropdown.addClass('uk-dropdown-flip');
-                offset = dropdown.offset();
-            }
+                if (this.options.preventflip !== true) {
 
-            if ((offset.left-boundaryoffset) < 0) {
+                    var fdpos;
 
-                dropdown.addClass("uk-dropdown-stack");
-
-                if (dropdown.hasClass('uk-dropdown-flip')) {
-
-                    if (!this.flipped) {
-                        dropdown.removeClass('uk-dropdown-flip');
-                        offset = dropdown.offset();
-                        dropdown.addClass('uk-dropdown-flip');
+                    switch(this.checkBoundary(pos.left + css.left, pos.top + css.top, width, height, boundarywidth)) {
+                        case "x":
+                            if(this.options.preventflip !=='x') fdpos = flips['x'][dpos] || 'right-top';
+                            break;
+                        case "y":
+                            if(this.options.preventflip !=='y') fdpos = flips['y'][dpos] || 'top-left';
+                            break;
+                        case "xy":
+                            if(!this.options.preventflip) fdpos = flips['xy'][dpos] || 'right-bottom';
+                            break;
                     }
 
-                    setTimeout(function(){
+                    if (fdpos) {
 
-                        if ((dropdown.offset().left-boundaryoffset) < 0 || !$this.flipped && (dropdown.outerWidth() + (offset.left-boundaryoffset)) < boundarywidth) {
-                            dropdown.removeClass('uk-dropdown-flip');
+                        pp  = fdpos.split('-');
+                        css = variants[fdpos] ? variants[fdpos] : variants['bottom-left'];
+
+                        // check flipped
+                        if (this.checkBoundary(pos.left + css.left, pos.top + css.top, width, height, boundarywidth)) {
+                            pp  = dpos.split('-');
+                            css = variants[dpos] ? variants[dpos] : variants['bottom-left'];
                         }
-                    }, 0);
+                    }
                 }
+            }
 
+            if (width > boundarywidth) {
+                dropdown.addClass("uk-dropdown-stack");
                 this.trigger('stack.uk.dropdown', [this]);
             }
 
-            dropdown.css("display", "");
-        }
+            dropdown.css(css).css("display", "").addClass('uk-dropdown-'+pp[0]);
+        },
 
+        checkBoundary: function(left, top, width, height, boundarywidth) {
+
+            var axis = "";
+
+            if (left < 0 || ((left - UI.$win.scrollLeft())+width) > boundarywidth) {
+               axis += "x";
+            }
+
+            if ((top - UI.$win.scrollTop()) < 0 || ((top - UI.$win.scrollTop())+height) > window.innerHeight) {
+               axis += "y";
+            }
+
+            return axis;
+        }
     });
 
 
@@ -2181,7 +2429,8 @@
         defaults: {
             "target"        : false,
             "row"           : true,
-            "ignorestacked" : false
+            "ignorestacked" : false,
+            "observe"       : false
         },
 
         boot: function() {
@@ -2211,7 +2460,7 @@
             UI.$win.on('load resize orientationchange', (function() {
 
                 var fn = function() {
-                    $this.match();
+                    if ($this.element.is(":visible")) $this.match();
                 };
 
                 UI.$(function() { fn(); });
@@ -2219,11 +2468,12 @@
                 return UI.Utils.debounce(fn, 50);
             })());
 
-            UI.$html.on("changed.uk.dom", function(e) {
-                $this.columns  = $this.element.children();
-                $this.elements = $this.options.target ? $this.find($this.options.target) : $this.columns;
-                $this.match();
-            });
+            if (this.options.observe) {
+
+                UI.domObserve(this.element, function(e) {
+                    if ($this.element.is(":visible")) $this.match();
+                });
+            }
 
             this.on("display.uk.check", function(e) {
                 if(this.element.is(":visible")) this.match();
@@ -2258,7 +2508,8 @@
     UI.component('gridMargin', {
 
         defaults: {
-            "cls": "uk-grid-margin"
+            cls      : 'uk-grid-margin',
+            rowfirst : 'uk-row-first'
         },
 
         boot: function() {
@@ -2290,6 +2541,12 @@
 
     var active = false, activeCount = 0, $html = UI.$html, body;
 
+    UI.$win.on("resize orientationchange", UI.Utils.debounce(function(){
+        UI.$('.uk-modal.uk-open').each(function(){
+            UI.$(this).data('modal').resize();
+        });
+    }, 150));
+
     UI.component('modal', {
 
         defaults: {
@@ -2302,6 +2559,7 @@
 
         scrollable: false,
         transition: false,
+        hasTransitioned: true,
 
         init: function() {
 
@@ -2330,6 +2588,8 @@
                     $this.hide();
                 }
             });
+
+            UI.domObserve(this.element, function(e) { $this.resize(); });
         },
 
         toggle: function() {
@@ -2349,7 +2609,7 @@
             }
 
             this.element.removeClass("uk-open").show();
-            this.resize();
+            this.resize(true);
 
             if (this.options.modal) {
                 active = this;
@@ -2359,7 +2619,14 @@
 
             activeCount++;
 
-            this.element.addClass("uk-open");
+            if (UI.support.transition) {
+                this.hasTransitioned = false;
+                this.element.one(UI.support.transition.end, function(){
+                    $this.hasTransitioned = true;
+                }).addClass("uk-open");
+            } else {
+                this.element.addClass("uk-open");
+            }
 
             $html.addClass("uk-modal-page").height(); // force browser engine redraw
 
@@ -2375,7 +2642,7 @@
 
         hide: function(force) {
 
-            if (!force && UI.support.transition) {
+            if (!force && UI.support.transition && this.hasTransitioned) {
 
                 var $this = this;
 
@@ -2391,7 +2658,9 @@
             return this;
         },
 
-        resize: function() {
+        resize: function(force) {
+
+            if (!this.isActive() && !force) return;
 
             var bodywidth  = body.width();
 
@@ -2421,14 +2690,17 @@
 
             if (scrollable.length) {
 
-                scrollable.css("height", 0);
+                scrollable.css('height', 0);
 
-                var offset = Math.abs(parseInt(this.dialog.css("margin-top"), 10)),
+                var offset = Math.abs(parseInt(this.dialog.css('margin-top'), 10)),
                 dh     = this.dialog.outerHeight(),
                 wh     = window.innerHeight,
                 h      = wh - 2*(offset < 20 ? 20:offset) - dh;
 
-                scrollable.css("height", h < this.options.minScrollHeight ? "":h);
+                scrollable.css({
+                    'max-height': (h < this.options.minScrollHeight ? '':h),
+                    'height':''
+                });
 
                 return true;
             }
@@ -2439,25 +2711,26 @@
         _hide: function() {
 
             this.active = false;
-            activeCount--;
+            if (activeCount > 0) activeCount--;
+            else activeCount = 0;
 
-            this.element.hide().removeClass("uk-open");
+            this.element.hide().removeClass('uk-open');
 
             // Update ARIA
             this.element.attr('aria-hidden', 'true');
 
             if (!activeCount) {
-                $html.removeClass("uk-modal-page");
+                $html.removeClass('uk-modal-page');
                 body.css(this.paddingdir, "");
             }
 
-            if(active===this) active = false;
+            if (active===this) active = false;
 
-            this.trigger("hide.uk.modal");
+            this.trigger('hide.uk.modal');
         },
 
         isActive: function() {
-            return this.active;
+            return this.element.hasClass('uk-open');
         }
 
     });
@@ -2490,10 +2763,6 @@
                     active.hide();
                 }
             });
-
-            UI.$win.on("resize orientationchange", UI.Utils.debounce(function(){
-                if (active) active.resize();
-            }, 150));
         },
 
         init: function() {
@@ -2553,18 +2822,21 @@
         return modal.show();
     };
 
-    UI.modal.confirm = function(content, onconfirm, options) {
+    UI.modal.confirm = function(content, onconfirm, oncancel) {
+
+        var options = arguments.length > 1 && arguments[arguments.length-1] ? arguments[arguments.length-1] : {};
 
         onconfirm = UI.$.isFunction(onconfirm) ? onconfirm : function(){};
-        options   = UI.$.extend(true, {bgclose:false, keyboard:false, modal:false, labels:UI.modal.labels}, options);
+        oncancel  = UI.$.isFunction(oncancel) ? oncancel : function(){};
+        options   = UI.$.extend(true, {bgclose:false, keyboard:false, modal:false, labels:UI.modal.labels}, UI.$.isFunction(options) ? {}:options);
 
         var modal = UI.modal.dialog(([
             '<div class="uk-margin uk-modal-content">'+String(content)+'</div>',
-            '<div class="uk-modal-footer uk-text-right"><button class="uk-button uk-modal-close">'+options.labels.Cancel+'</button> <button class="uk-button uk-button-primary js-modal-confirm">'+options.labels.Ok+'</button></div>'
+            '<div class="uk-modal-footer uk-text-right"><button class="uk-button js-modal-confirm-cancel">'+options.labels.Cancel+'</button> <button class="uk-button uk-button-primary js-modal-confirm">'+options.labels.Ok+'</button></div>'
         ]).join(""), options);
 
-        modal.element.find(".js-modal-confirm").on("click", function(){
-            onconfirm();
+        modal.element.find(".js-modal-confirm, .js-modal-confirm-cancel").on("click", function(){
+            UI.$(this).is('.js-modal-confirm') ? onconfirm() : oncancel();
             modal.hide();
         });
 
@@ -2687,7 +2959,7 @@
 
             var $this = this;
 
-            this.on("click.uikit.nav", this.options.toggle, function(e) {
+            this.on("click.uk.nav", this.options.toggle, function(e) {
                 e.preventDefault();
                 var ele = UI.$(this);
                 $this.open(ele.parent()[0] == $this.element[0] ? ele : ele.parent("li"));
@@ -2891,7 +3163,7 @@
                 Offcanvas.hide();
             });
 
-            element.on("click", "a[href^='#']", function(e){
+            element.on("click", "a[href*='#']", function(e){
 
                 var link = UI.$(this),
                     href = link.attr("href");
@@ -2905,16 +3177,16 @@
                     var target;
 
                     try {
-                        target = UI.$(href);
+                        target = UI.$(link[0].hash);
                     } catch (e){
-                        target = ""
+                        target = '';
                     }
 
                     if (!target.length) {
-                        target = UI.$('[name="'+href.replace('#','')+'"]');
+                        target = UI.$('[name="'+link[0].hash.replace('#','')+'"]');
                     }
 
-                    if (target.length && link.attr('data-uk-smooth-scroll') && UI.Utils.scrollToElement) {
+                    if (target.length && UI.Utils.scrollToElement) {
                         UI.Utils.scrollToElement(target, UI.Utils.options(link.attr('data-uk-smooth-scroll') || '{}'));
                     } else {
                         window.location.href = href;
@@ -3010,7 +3282,7 @@
 
             var $this = this;
 
-            this.on("click.uikit.switcher", this.options.toggle, function(e) {
+            this.on("click.uk.switcher", this.options.toggle, function(e) {
                 e.preventDefault();
                 $this.show(this);
             });
@@ -3019,7 +3291,7 @@
 
                 this.connect = UI.$(this.options.connect);
 
-                this.connect.find(".uk-active").removeClass(".uk-active");
+                this.connect.children().removeClass("uk-active");
 
                 // delegate switch commands within container content
                 if (this.connect.length) {
@@ -3043,7 +3315,7 @@
                             default:
                                 $this.show(parseInt(item, 10));
                         }
-                    })
+                    });
 
                     if (this.options.swiping) {
 
@@ -3072,10 +3344,6 @@
                 // Init ARIA for toggles
                 toggles.not(active).attr('aria-expanded', 'false');
                 active.attr('aria-expanded', 'true');
-
-                this.on('changed.uk.dom', function() {
-                    $this.connect = UI.$($this.options.connect);
-                });
             }
 
         },
@@ -3159,6 +3427,7 @@
                             UI.Utils.checkDisplay(next, true);
 
                             $this.animating = false;
+
                         });
                 });
             }
@@ -3241,15 +3510,21 @@
             clsOut = cls[1] || cls[0];
         }
 
+        UI.$body.css('overflow-x', 'hidden'); // fix scroll jumping in iOS
+
         release = function() {
 
             if (current) current.hide().removeClass('uk-active '+clsOut+' uk-animation-reverse');
 
             next.addClass(clsIn).one(UI.support.animation.end, function() {
 
-                next.removeClass(''+clsIn+'').css({opacity:'', display:''});
+                setTimeout(function () {
+                    next.removeClass(''+clsIn+'').css({opacity:'', display:''});
+                }, 0);
 
                 d.resolve();
+
+                UI.$body.css('overflow-x', '');
 
                 if (current) current.css({opacity:'', display:''});
 
@@ -3287,7 +3562,8 @@
             'connect'   : false,
             'active'    : 0,
             'animation' : false,
-            'duration'  : 200
+            'duration'  : 200,
+            'swiping'   : true
         },
 
         boot: function() {
@@ -3312,7 +3588,7 @@
 
             this.current = false;
 
-            this.on("click.uikit.tab", this.options.target, function(e) {
+            this.on("click.uk.tab", this.options.target, function(e) {
 
                 e.preventDefault();
 
@@ -3349,7 +3625,7 @@
             if (this.element.hasClass("uk-tab-bottom")) this.responsivetab.dropdown.addClass("uk-dropdown-up");
 
             // handle click
-            this.responsivetab.lst.on('click.uikit.tab', 'a', function(e) {
+            this.responsivetab.lst.on('click.uk.tab', 'a', function(e) {
 
                 e.preventDefault();
                 e.stopPropagation();
@@ -3368,15 +3644,16 @@
             // init UIkit components
             if (this.options.connect) {
                 this.switcher = UI.switcher(this.element, {
-                    "toggle"    : ">li:not(.uk-tab-responsive)",
-                    "connect"   : this.options.connect,
-                    "active"    : this.options.active,
-                    "animation" : this.options.animation,
-                    "duration"  : this.options.duration
+                    'toggle'    : '>li:not(.uk-tab-responsive)',
+                    'connect'   : this.options.connect,
+                    'active'    : this.options.active,
+                    'animation' : this.options.animation,
+                    'duration'  : this.options.duration,
+                    'swiping'   : this.options.swiping
                 });
             }
 
-            UI.dropdown(this.responsivetab, {"mode": "click"});
+            UI.dropdown(this.responsivetab, {"mode": "click", "preventflip": "y"});
 
             // init
             $this.trigger("change.uk.tab", [this.element.find(this.options.target).not('.uk-tab-responsive').filter('.uk-active')]);

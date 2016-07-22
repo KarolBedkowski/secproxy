@@ -543,3 +543,36 @@
     }, false);
 
 });
+        current.addClass('uk-slideshow-fade-out');
+            current.width(); // force redraw
+
+            return d.promise();
+        }
+    };
+
+    UI.slideshow.animations = Animations;
+
+    // Listen for messages from the vimeo player
+    window.addEventListener('message', function onMessageReceived(e) {
+
+        var data = e.data, iframe;
+
+        if (typeof(data) == 'string') {
+
+            try {
+                data = JSON.parse(data);
+            } catch(err) {
+                data = {};
+            }
+        }
+
+        if (e.origin && e.origin.indexOf('vimeo') > -1 && data.event == 'ready' && data.player_id) {
+            iframe = UI.$('[data-player-id="'+ data.player_id+'"]');
+
+            if (iframe.length) {
+                iframe.data('slideshow').mutemedia(iframe);
+            }
+        }
+    }, false);
+
+});

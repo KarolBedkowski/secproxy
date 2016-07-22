@@ -553,3 +553,53 @@
 
     return UI.lightbox;
 });
+lick", "[data-lightbox-previous], [data-lightbox-next]", function(e){
+            e.preventDefault();
+            modal.lightbox[UI.$(this).is('[data-lightbox-next]') ? 'next':'previous']();
+        });
+
+        // destroy content on modal hide
+        modal.on("hide.uk.modal", function(e) {
+            modal.content.html('');
+        });
+
+        var resizeCache = {w: window.innerWidth, h:window.innerHeight};
+
+        UI.$win.on('load resize orientationchange', UI.Utils.debounce(function(e){
+
+            if (resizeCache.w !== window.innerWidth && modal.is(':visible') && !UI.Utils.isFullscreen()) {
+                modal.lightbox.fitSize();
+            }
+
+            resizeCache = {w: window.innerWidth, h:window.innerHeight};
+
+        }, 100));
+
+        modal.lightbox = lightbox;
+
+        return modal;
+    }
+
+    UI.lightbox.create = function(items, options) {
+
+        if (!items) return;
+
+        var group = [], o;
+
+        items.forEach(function(item) {
+
+            group.push(UI.$.extend({
+                'source' : '',
+                'title'  : '',
+                'type'   : 'auto',
+                'link'   : false
+            }, (typeof(item) == 'string' ? {'source': item} : item)));
+        });
+
+        o = UI.lightbox(UI.$.extend({}, options, {'group':group}));
+
+        return o;
+    };
+
+    return UI.lightbox;
+});

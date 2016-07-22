@@ -170,3 +170,13 @@
 
     return UI.accordion;
 });
+erHeight();
+
+            $ele.css(tmp); // reset element
+        }
+
+        return height;
+    }
+
+    return UI.accordion;
+});

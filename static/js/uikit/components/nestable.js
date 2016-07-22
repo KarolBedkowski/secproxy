@@ -636,3 +636,30 @@
 
     return UI.nestable;
 });
+     if (!parent.data("nestable")) this.unsetParent(parent.parent());
+                }
+
+                this.checkEmptyList(this.dragRootEl);
+                this.checkEmptyList(pointElRoot);
+
+                // parent root list has changed
+                if (isNewRoot) {
+                    this.dragRootEl = tmpRoot;
+                    this.hasNewRoot = this.element[0] !== this.dragRootEl[0];
+                }
+            }
+        },
+
+        checkEmptyList: function(list) {
+
+            list  = list ? UI.$(list) : this.element;
+
+            if (this.options.emptyClass) {
+                list[!list.children().length ? 'addClass':'removeClass'](this.options.emptyClass);
+            }
+        }
+
+    });
+
+    return UI.nestable;
+});

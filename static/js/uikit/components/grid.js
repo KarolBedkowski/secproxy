@@ -521,3 +521,11 @@
         return _getSize(ele);
     }
 });
+ return getSize;
+
+    }
+
+    function getElementSize(ele) {
+        return _getSize()(ele);
+    }
+});

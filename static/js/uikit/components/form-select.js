@@ -68,3 +68,17 @@
 
     return UI.formSelect;
 });
+is.element[$this.select.val() ? 'addClass':'removeClass']($this.options.activeClass);
+
+                    return fn;
+                };
+
+                return fn();
+            })());
+
+            this.element.data("formSelect", this);
+        }
+    });
+
+    return UI.formSelect;
+});

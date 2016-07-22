@@ -145,3 +145,5 @@
 
     return UI.pagination;
 });
+;
+});

@@ -662,3 +662,73 @@
 
     return UI.sortable;
 });
+te.value=='0') ? val:attribute.value;
+                    }
+                }
+                data.push(item);
+            });
+
+            return data;
+        },
+
+        checkEmptyList: function(list) {
+
+            list  = list ? UI.$(list) : this.element;
+
+            if (this.options.emptyClass) {
+                list[!list.children().length ? 'addClass':'removeClass'](this.options.emptyClass);
+            }
+        }
+    });
+
+    // helpers
+
+    function isBelow(el1, el2) {
+
+        var parent = el1.parentNode;
+
+        if (el2.parentNode != parent) {
+            return false;
+        }
+
+        var cur = el1.previousSibling;
+
+        while (cur && cur.nodeType !== 9) {
+            if (cur === el2) {
+                return true;
+            }
+            cur = cur.previousSibling;
+        }
+
+        return false;
+    }
+
+    function moveUpToChildNode(parent, child) {
+        var cur = child;
+        if (cur == parent) { return null; }
+
+        while (cur) {
+            if (cur.parentNode === parent) {
+                return cur;
+            }
+
+            cur = cur.parentNode;
+            if ( !cur || !cur.ownerDocument || cur.nodeType === 11 ) {
+                break;
+            }
+        }
+        return null;
+    }
+
+    function prevent(e) {
+        if (e.stopPropagation) {
+            e.stopPropagation();
+        }
+        if (e.preventDefault) {
+            e.preventDefault();
+        }
+        e.returnValue = false;
+    }
+
+    return UI.sortable;
+});

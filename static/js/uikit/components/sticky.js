@@ -347,3 +347,25 @@
 
     return UI.sticky;
 });
+  }
+                        }
+                    }
+
+                    sticky.element.addClass(sticky.options.clsactive).removeClass(sticky.options.clsinactive);
+                    sticky.element.trigger('active.uk.sticky');
+                    sticky.element.css('margin', '');
+
+                    if (sticky.options.animation && sticky.init && !UI.Utils.isInView(sticky.wrapper)) {
+                        sticky.element.addClass(sticky.options.animation);
+                    }
+
+                    sticky.currentTop = newTop;
+                }
+            }
+
+            sticky.init = true;
+        }
+    }
+
+    return UI.sticky;
+});

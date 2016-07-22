@@ -518,3 +518,35 @@
 
     return UI.slider;
 });
+z != store.focus && itm.data('left') > store.diff) {
+                        focus = z;
+                        break;
+                    }
+
+                    z = z+1 == dragging.items.length ? 0:z+1;
+                }
+
+            } else {
+
+                for (i=0,z=store.focus;i<dragging.items.length;i++) {
+
+                    itm = dragging.items.eq(z);
+
+                    if (z != store.focus && itm.data('left') < store.diff) {
+                        focus = z;
+                        break;
+                    }
+
+                    z = z-1 == -1 ? dragging.items.length-1:z-1;
+                }
+            }
+
+            dragging.updateFocus(focus!==false ? focus:store._focus);
+
+        }
+
+        dragging = delayIdle = false;
+    });
+
+    return UI.slider;
+});

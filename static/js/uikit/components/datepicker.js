@@ -3164,3 +3164,7 @@
 
     return UI.datepicker;
 });
+= moment;
+
+    return UI.datepicker;
+});
