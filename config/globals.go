@@ -181,7 +181,7 @@ func decodeEndpoint(buff []byte) (ec *EndpointConf) {
 	ec = &EndpointConf{}
 	r := bytes.NewBuffer(buff)
 	dec := gob.NewDecoder(r)
-	if err := dec.Decode(ec); err == nil {
+	if err := dec.Decode(ec); err != nil {
 		log.Warn("globals.decodeEndpoint decode error", "err", err)
 		return nil
 	}

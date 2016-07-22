@@ -24,7 +24,7 @@ type endpoint struct {
 	Running    bool
 	Local      string
 	LocalHTTPS string
-	remote     string
+	Remote     string
 	Errors     string
 }
 

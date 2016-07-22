@@ -189,7 +189,8 @@ func EndpointRunning(name string) bool {
 }
 
 func EndpointErrors(name string) (e string) {
-	if err := errors.Get(name); err != nil {
+	if err := errors.Get(name); err != nil && err.String() != "" {
+		log.Debug("server.EndpointErrors", "err", err)
 		e = err.String() + "; "
 	}
 	if err := errors.Get(name + "|ssl"); err != nil {
