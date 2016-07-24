@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"flag"
+	"github.com/camlistore/lock"
 	"github.com/cznic/kv"
 	"io"
 	"k.prv/secproxy/common"
@@ -74,6 +75,9 @@ func (g *Globals) openDatabases() {
 		VerifyDbAfterOpen:   true,
 		VerifyDbBeforeClose: true,
 		VerifyDbAfterClose:  true,
+		Locker: func(name string) (io.Closer, error) {
+			return lock.Lock(name + ".lock")
+		},
 	}
 
 	var err error
