@@ -3,6 +3,7 @@ package proxy
 import (
 	"crypto/tls"
 	"expvar"
+	"github.com/prometheus/client_golang/prometheus"
 	"k.prv/secproxy/common"
 	"k.prv/secproxy/config"
 	"k.prv/secproxy/logging"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -80,6 +82,7 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 	handler = counterMw(handler, name)
 	handler = common.LogHandler(handler, "server:", "endpoint", name, "module", "server")
 	// TODO: stats handler
+	handler = metricsMW(handler, name, globals)
 
 	if conf.HTTPAddress != "" {
 		log.Info("server.StartEndpoint starting http", "endpoint", name)
@@ -304,5 +307,73 @@ func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) 
 		logging.LogForRequest(log, r).Info("authenticationMW 401 Unauthorized", "endpoint", endpoint, "status", 401,
 			"user", user.Login, "user_active", user.Active)
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+	})
+}
+
+func groupStatusCode(code int) string {
+	if code <= 100 && code < 200 {
+		return "1xx"
+	}
+	if code < 300 {
+		return "2xx"
+	}
+	if code < 400 {
+		return "3xx"
+	}
+	if code < 500 {
+		return "4xx"
+	}
+	if code < 600 {
+		return "5xx"
+	}
+	return "unk"
+}
+
+func metricsMW(h http.Handler, endpoint string, globals *config.Globals) http.Handler {
+	opts := prometheus.SummaryOpts{
+		Subsystem:   "http",
+		Namespace:   "proxy",
+		ConstLabels: prometheus.Labels{"endpoint": endpoint},
+	}
+
+	labels := []string{"method", "code", "code_group"}
+
+	reqCnt := prometheus.MustRegisterOrGet(prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace:   opts.Namespace,
+			Subsystem:   opts.Subsystem,
+			Name:        "requests_total",
+			Help:        "Total number of HTTP requests made per url.",
+			ConstLabels: opts.ConstLabels,
+		},
+		labels,
+	)).(*prometheus.CounterVec)
+
+	reqDur := prometheus.MustRegisterOrGet(prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Namespace:   opts.Namespace,
+			Subsystem:   opts.Subsystem,
+			Name:        "request_duration_microseconds",
+			Help:        "The HTTP request latencies in microseconds.",
+			ConstLabels: opts.ConstLabels,
+		},
+		labels,
+	)).(*prometheus.SummaryVec)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		now := time.Now()
+
+		writer := &common.ResponseWriter{ResponseWriter: w, Status: 200}
+
+		defer func() {
+			elapsed := float64(time.Since(now)) / float64(time.Microsecond)
+			method := strings.ToLower(r.Method)
+			code := strconv.Itoa(writer.Status)
+			group := groupStatusCode(writer.Status)
+			reqCnt.WithLabelValues(method, code, group).Inc()
+			reqDur.WithLabelValues(method, code, group).Observe(elapsed)
+		}()
+
+		h.ServeHTTP(writer, r)
 	})
 }

@@ -3,6 +3,7 @@ package admin
 import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
+	"github.com/prometheus/client_golang/prometheus"
 	"k.prv/secproxy/common"
 	"k.prv/secproxy/config"
 	"k.prv/secproxy/logging"
@@ -34,11 +35,16 @@ func StartAdmin(globals *config.Globals) {
 	InitStatsHandlers(globals, appRouter.PathPrefix("/stats"))
 	InitSettingsHandlers(globals, appRouter.PathPrefix("/settings"))
 
-	http.Handle("/static/", http.StripPrefix("/static",
-		FileServer(http.Dir(globals.Config.AdminPanel.StaticDir), debug)))
+	http.Handle("/static/", prometheus.InstrumentHandler("static", http.StripPrefix("/static",
+		FileServer(http.Dir(globals.Config.AdminPanel.StaticDir), debug))))
 	http.Handle("/favicon.ico", FileServer(http.Dir(globals.Config.AdminPanel.StaticDir), debug))
 
-	http.Handle("/", common.LogHandler(CsrfHandler(SessionHandler(appRouter)), "admin:", "module", "admin"))
+	http.Handle("/", prometheus.InstrumentHandlerFunc("appRouter",
+		common.LogHandler(
+			CsrfHandler(
+				SessionHandler(appRouter)),
+			"admin:", "module", "admin")))
+	http.Handle("/metrics", prometheus.Handler())
 
 	if globals.Config.AdminPanel.HTTPSAddress != "" {
 		log.Info("admin.StartAdmin Listen HTTPS ", "port", globals.Config.AdminPanel.HTTPSAddress)
