@@ -5,7 +5,6 @@ import (
 	"encoding/gob"
 	"flag"
 	"github.com/cznic/kv"
-	"github.com/thoas/stats"
 	"io"
 	"k.prv/secproxy/common"
 	"os"
@@ -18,9 +17,7 @@ type (
 		Config       *AppConfiguration
 		confFilename string
 
-		db          *kv.DB
-		StatsAdmin  *stats.Stats
-		StatsServer *stats.Stats
+		db *kv.DB
 
 		mu sync.RWMutex
 	}
@@ -37,8 +34,6 @@ func NewGlobals() *Globals {
 	globals := &Globals{}
 	globals.confFilename = *configFilename
 	globals.ReloadConfig()
-	globals.StatsServer = stats.New()
-	globals.StatsAdmin = stats.New()
 	return globals
 }
 
