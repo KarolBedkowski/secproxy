@@ -3,7 +3,6 @@ package config
 import (
 	"bytes"
 	"encoding/gob"
-	"flag"
 	"github.com/camlistore/lock"
 	"github.com/cznic/kv"
 	"io"
@@ -27,13 +26,12 @@ type (
 var (
 	userPrefix     = []byte("U_")
 	endpointPrefix = []byte("E_")
-
-	configFilename = flag.String("config", "./config.toml", "Configuration file name")
 )
 
-func NewGlobals() *Globals {
-	globals := &Globals{}
-	globals.confFilename = *configFilename
+func NewGlobals(confFilename string) *Globals {
+	globals := &Globals{
+		confFilename: confFilename,
+	}
 	globals.ReloadConfig()
 	return globals
 }

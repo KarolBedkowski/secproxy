@@ -1,22 +1,19 @@
 package logging
 
 import (
-	"flag"
 	log "gopkg.in/inconshreveable/log15.v2"
 	"net/http"
 	"os"
 )
 
 var (
-	Log          = log.New()
-	logFilenameF = flag.String("log", "./secproxy.log", "Log file name")
-	debugF       = flag.Int("debug", 0, "Run in normal mode (0), debug mode (1) or verbose mode (2)")
-	logFilename  string
-	debug        = 0
+	Log         = log.New()
+	logFilename string
+	debug       = 0
 )
 
-func Init() {
-	setSettings(*debugF, *logFilenameF)
+func Init(logFileName string, debug int) {
+	setSettings(debug, logFileName)
 }
 
 func setSettings(level int, filename string) {
