@@ -133,6 +133,8 @@ func chpassPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCon
 		BasePageContext: bctx,
 	}
 
+	log := logUsers.WithRequest(r)
+
 	suser, ok := bctx.Session.GetLoggedUser()
 	if !ok || suser == nil {
 		logging.LogForRequest(logUsers, r).Error("admin.chpassPageHandler user not logged")
@@ -140,17 +142,19 @@ func chpassPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCon
 		return
 	}
 
+	log = log.With("user", bctx.UserLogin())
+
 	switch r.Method {
 	case "POST":
 		r.ParseForm()
 		if err := decoder.Decode(&ctx.Form, r.Form); err != nil {
-			logging.LogForRequest(logUsers, r).Error("admin.chpassPageHandler decode form error", "err", err, "form", r.Form)
+			log.With("err", err).Error("admin.chpassPageHandler decode form error; form=%+v", r.Form)
 			break
 		}
 
 		user := bctx.Globals.GetUser(suser.Login)
 		if user == nil {
-			logging.LogForRequest(logUsers, r).Error("admin.chpassPageHandler user not found", "login", suser.Login)
+			log.Error("admin.chpassPageHandler user %s not found", suser.Login)
 			http.Error(w, "Bad user", http.StatusBadRequest)
 			return
 		}
@@ -173,6 +177,7 @@ func chpassPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCon
 		bctx.Globals.SaveUser(user)
 		ctx.AddFlashMessage("Password updated", "success")
 		ctx.Save()
+		log.Error("admin.chpassPageHandler password fror %s changed", suser.Login)
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}

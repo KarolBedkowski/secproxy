@@ -21,7 +21,7 @@ func main() {
 	log := logging.NewLogger("main")
 	startTime := time.Now()
 
-	log.Info("Starting secproxy... ", "ver", config.AppVersion)
+	log.With("ver", config.AppVersion).Info("Starting secproxy... ")
 	log.Info("Copyright (c) Karol Będkowski, 2015")
 
 	flag.Parse()

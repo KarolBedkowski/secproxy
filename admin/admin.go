@@ -49,22 +49,24 @@ func StartAdmin(globals *config.Globals) {
 	http.Handle("/metrics", prometheus.Handler())
 
 	if globals.Config.AdminPanel.HTTPSAddress != "" {
-		log.Info("admin.StartAdmin Listen HTTPS ", "port", globals.Config.AdminPanel.HTTPSAddress)
+		log.Info("admin.StartAdmin Listen HTTPS; address=%v", globals.Config.AdminPanel.HTTPSAddress)
 
 		go func() {
 			if err := http.ListenAndServeTLS(globals.Config.AdminPanel.HTTPSAddress,
 				globals.Config.AdminPanel.SslCert, globals.Config.AdminPanel.SslKey, nil); err != nil {
-				log.Error("admin.StartAdmin Error listening https, ", "err", err)
+				log.With("err", err).
+					Panic("admin.StartAdmin Error listening https; address=%v", globals.Config.AdminPanel.HTTPSAddress)
 			}
 		}()
 	}
 
 	if globals.Config.AdminPanel.HTTPAddress != "" {
-		log.Info("admin.StartAdmin Listen", "port", globals.Config.AdminPanel.HTTPAddress)
+		log.Info("admin.StartAdmin Listen; address=%v", globals.Config.AdminPanel.HTTPAddress)
 
 		go func() {
 			if err := http.ListenAndServe(globals.Config.AdminPanel.HTTPAddress, nil); err != nil {
-				log.Error("admin.StartAdmin Error listening http, ", "err", err)
+				log.With("err", err).
+					Panic("admin.StartAdmin Error listening http; address=%v", globals.Config.AdminPanel.HTTPAddress)
 			}
 		}()
 	}
@@ -79,12 +81,12 @@ func mainPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 func GetNamedURL(name string, pairs ...string) (url string) {
 	route := appRouter.Get(name)
 	if route == nil {
-		log.Error("GetNamedURL error", "name", name)
+		log.Warn("GetNamedURL can't find route: %v", name)
 		return ""
 	}
 	rurl, err := route.URL(pairs...)
 	if err != nil {
-		log.Error("GetNamedURL error", "name", name, "err", err.Error())
+		log.With("err", err).Warn("GetNamedURL can't construct url; name=%v, pairs=%+v", name, pairs)
 		return ""
 	}
 	return rurl.String()

@@ -66,7 +66,7 @@ func ClearSession(w http.ResponseWriter, r *http.Request) {
 func SaveSession(w http.ResponseWriter, r *http.Request) error {
 	err := sessions.Save(r, w)
 	if err != nil {
-		logSession.Error("SaveSession error", "err", err)
+		logSession.With("err", err).Error("SaveSession error")
 	}
 	return err
 }

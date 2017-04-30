@@ -297,11 +297,12 @@ func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) 
 		networks = prepareNetworks(conf.AcceptAddr)
 	}
 
+	llog := log.With("endpoint", endpoint)
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if networks != nil {
 			if !acceptAddress(networks, r.RemoteAddr) {
-				log.Info("authenticationMW 403 Forbidden - addr", "endpoint", endpoint,
-					"addr", r.RemoteAddr)
+				llog.WithRequest(r).Info("authenticationMW 403 Forbidden - addr")
 				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 				counters.Add(endpoint+"|403", 1)
 				return
@@ -320,7 +321,7 @@ func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) 
 
 		if usr == "" {
 			w.Header().Set("WWW-Authenticate", "Basic realm=\"REALM\"")
-			logging.LogForRequest(log, r).Info("authenticationMW 401 Unauthorized", "endpoint", endpoint, "status", 401)
+			llog.WithRequest(r).With("status", 401).Info("authenticationMW 401 Unauthorized")
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			counters.Add(endpoint+"|401", 1)
 			return
@@ -338,8 +339,10 @@ func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) 
 		counters.Add(endpoint+"|403", 1)
 
 		w.Header().Set("WWW-Authenticate", "Basic realm=\"REALM\"")
-		logging.LogForRequest(log, r).Info("authenticationMW 401 Unauthorized", "endpoint", endpoint, "status", 401,
-			"user", user.Login, "user_active", user.Active)
+		llog.WithRequest(r).
+			With("user", user.Login).With("user_active", user.Active).
+			With("status", 401).
+			Info("authenticationMW 401 Unauthorized")
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 	})
 }

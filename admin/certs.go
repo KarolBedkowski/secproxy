@@ -35,10 +35,11 @@ func certsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 
 func certUploadPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
 	r.ParseMultipartForm(32 << 20)
+	log := logCerts.WithRequest(r).With("user", bctx.UserLogin())
 	file, handler, err := r.FormFile("uploadfile")
 	if err != nil {
-		logging.LogForRequest(logCerts, r).Warn("certUploadPageHandler - get form file error",
-			"err", err)
+		log.With("err", err).
+			Info("certUploadPageHandler - get form file error")
 		bctx.AddFlashMessage("Upload file error: "+err.Error(), "error")
 		bctx.Save()
 		http.Redirect(w, r, "/certs/", http.StatusFound)
@@ -47,8 +48,8 @@ func certUploadPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePag
 	defer file.Close()
 	f, err := os.OpenFile(path.Join(bctx.Globals.Config.CertsDir, handler.Filename), os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
-		logging.LogForRequest(logCerts, r).Warn("certUploadPageHandler - open file error",
-			"certname", handler.Filename, "user", bctx.UserLogin(), "err", err)
+		log.With("err", err).
+			Warn("certUploadPageHandler - open file %s error", handler.Filename)
 		bctx.AddFlashMessage("Upload file error: "+err.Error(), "error")
 		http.Redirect(w, r, "/certs/", http.StatusFound)
 		bctx.Save()
@@ -56,12 +57,11 @@ func certUploadPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePag
 	}
 	defer f.Close()
 	if _, err := io.Copy(f, file); err == nil {
-		logging.LogForRequest(logCerts, r).Info("certUploadPageHandler upload success",
-			"certname", handler.Filename, "user", bctx.UserLogin())
+		log.Info("certUploadPageHandler upload file %s success", handler.Filename)
 		bctx.AddFlashMessage("Upload file success", "success")
 	} else {
-		logging.LogForRequest(logCerts, r).Warn("certUploadPageHandler upload error",
-			"certname", handler.Filename, "user", bctx.UserLogin(), "err", err)
+		log.With("err", err).
+			Warn("certUploadPageHandler upload file %s error", handler.Filename)
 		bctx.AddFlashMessage("Upload file error: "+err.Error(), "error")
 	}
 	bctx.Save()
@@ -70,18 +70,21 @@ func certUploadPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePag
 
 func certDeletePageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
 	r.ParseForm()
+	log := logCerts.WithRequest(r).With("user", bctx.UserLogin())
 	certname := ""
 	if certnames, ok := r.Form["c"]; ok && len(certnames) > 0 {
 		certname = certnames[0]
 	}
 	if certname == "" {
-		logging.LogForRequest(logCerts, r).Warn("certDeletePageHandler missing certname", "form", r.Form)
+		log.Info("certDeletePageHandler missing certname; form=%+v", r.Form)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
+	log = log.With("certname", certname)
+
 	if epname, used := bctx.Globals.CertUsed(certname); used {
-		logging.LogForRequest(logCerts, r).Info("certDeletePageHandler - cert used", "certname", certname, "endpoint", epname)
+		log.Info("certDeletePageHandler - cert used in endpoint=%s", epname)
 		bctx.AddFlashMessage("File is used in "+epname+" - can't be deleted", "error")
 		bctx.Save()
 		http.Redirect(w, r, "/certs/", http.StatusFound)
@@ -93,18 +96,16 @@ func certDeletePageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePag
 	certsdir, _ := filepath.Abs(bctx.Globals.Config.CertsDir)
 	certsdir = filepath.Clean(certsdir)
 	if certname == "" || !strings.HasPrefix(certname, certsdir) || certname == certsdir {
-		logging.LogForRequest(logCerts, r).Warn("certDeletePageHandler invalid cert",
-			"certname", certname, "form", r.Form, "certsdir", certsdir)
+		log.Info("certDeletePageHandler invalid cert")
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 	if err := os.Remove(certname); err == nil {
-		logging.LogForRequest(logCerts, r).Info("certDeletePageHandler cert deleted",
-			"certname", certname, "user", bctx.UserLogin())
+		log.Info("certDeletePageHandler cert deleted")
 		bctx.AddFlashMessage("File deleted", "success")
 	} else {
-		logging.LogForRequest(logCerts, r).Warn("certDeletePageHandler cert deleted error",
-			"certname", certname, "err", err, "user", bctx.UserLogin())
+		log.With("err", err).
+			Warn("certDeletePageHandler cert deleted error")
 		bctx.AddFlashMessage("File delete error: "+err.Error(), "error")
 	}
 	bctx.Save()

@@ -39,7 +39,7 @@ func setdebugPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 	}
 
 	if logging.SetLogLevel(level) {
-		logging.LogForRequest(loggerSett, r).Warn("setdebugPageHandler change level", "level", level)
+		loggerSett.WithRequest(r).Warn("setdebugPageHandler change level %v", level)
 		bctx.AddFlashMessage("Logging level changed", "success")
 		bctx.Save()
 	}

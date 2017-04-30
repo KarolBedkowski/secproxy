@@ -6,6 +6,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"net/http"
 	"os"
+	"runtime"
+	"strings"
 )
 
 var (
@@ -79,24 +81,95 @@ func LogFilename() string {
 	return logFilename
 }
 
+type Logger interface {
+	Debug(string, ...interface{})
+	Info(string, ...interface{})
+	Warn(string, ...interface{})
+	Error(string, ...interface{})
+	Panic(string, ...interface{})
+	With(key string, value interface{}) Logger
+	WithRequest(r *http.Request) Logger
+}
+
+type logger struct {
+	entry *logrus.Entry
+}
+
+func NewLogger(module string) Logger {
+	l := Log.WithField("module", module)
+	return logger{entry: l}
+}
+
+func (l *logger) sourcedlog() *logrus.Entry {
+	_, file, line, ok := runtime.Caller(2)
+	if !ok {
+		file = "<???>"
+		line = 1
+	} else {
+		slash := strings.LastIndex(file, "/")
+		file = file[slash+1:]
+	}
+	return l.entry.WithField("source", fmt.Sprintf("%s:%d", file, line))
+}
+
+func (l logger) Debug(msg string, args ...interface{}) {
+	l.sourcedlog().Debugf(msg, args...)
+}
+
+func (l logger) Info(msg string, args ...interface{}) {
+	l.sourcedlog().Infof(msg, args...)
+}
+
+func (l logger) Warn(msg string, args ...interface{}) {
+	l.sourcedlog().Warnf(msg, args...)
+}
+
+func (l logger) Error(msg string, args ...interface{}) {
+	l.sourcedlog().Errorf(msg, args...)
+}
+
+func (l logger) Panic(msg string, args ...interface{}) {
+	l.sourcedlog().Panicf(msg, args...)
+}
+
+func (l logger) With(key string, value interface{}) Logger {
+	return logger{l.entry.WithField(key, value)}
+}
+
+func (l logger) WithRequest(r *http.Request) Logger {
+	return logger{LogForRequest(l.entry, r)}
+}
+
+func sourcedlog(l *logrus.Logger) *logrus.Entry {
+	_, file, line, ok := runtime.Caller(2)
+	if !ok {
+		file = "<???>"
+		line = 1
+	} else {
+		slash := strings.LastIndex(file, "/")
+		file = file[slash+1:]
+	}
+	return l.WithField("source", fmt.Sprintf("%s:%d", file, line))
+}
+
 func Debug(msg string, args ...interface{}) {
-	Log.Debugf(msg, args...)
+	sourcedlog(Log).Debugf(msg, args...)
 }
 
 func Info(msg string, args ...interface{}) {
-	Log.Infof(msg, args...)
+	sourcedlog(Log).Infof(msg, args...)
 }
 
 func Warn(msg string, args ...interface{}) {
-	Log.Warnf(msg, args...)
+	sourcedlog(Log).Warnf(msg, args...)
 }
 
 func Error(msg string, args ...interface{}) {
-	Log.Errorf(msg, args...)
+	sourcedlog(Log).Errorf(msg, args...)
 }
 
 func Panic(msg string, args ...interface{}) {
-	Log.Panicf(msg, args...)
+	sourcedlog(Log).Panicf(msg, args...)
 }
 
 func LogForRequest(l interface{}, r *http.Request) *logrus.Entry {
@@ -122,8 +195,4 @@ func LogForRequest(l interface{}, r *http.Request) *logrus.Entry {
 	}
 
 	return le.WithFields(f)
-}
-
-func NewLogger(module string) *logrus.Entry {
-	return Log.WithField("module", module)
 }
