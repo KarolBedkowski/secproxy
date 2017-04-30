@@ -40,7 +40,41 @@ var (
 	mu       sync.RWMutex
 
 	log = logging.NewLogger("server")
+
+	metricsLabels = []string{"method", "code", "code_group", "endpoint"}
+
+	metricsOpts = prometheus.SummaryOpts{
+		Subsystem: "http",
+		Namespace: "secproxy",
+	}
+
+	metricReqCnt = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace:   metricsOpts.Namespace,
+			Subsystem:   metricsOpts.Subsystem,
+			Name:        "requests_total",
+			Help:        "Total number of HTTP requests made per url.",
+			ConstLabels: metricsOpts.ConstLabels,
+		},
+		metricsLabels,
+	)
+
+	metricReqDur = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Namespace:   metricsOpts.Namespace,
+			Subsystem:   metricsOpts.Subsystem,
+			Name:        "request_duration_microseconds",
+			Help:        "The HTTP request latencies in microseconds.",
+			ConstLabels: metricsOpts.ConstLabels,
+		},
+		metricsLabels,
+	)
 )
+
+func init() {
+	prometheus.MustRegister(metricReqCnt)
+	prometheus.MustRegister(metricReqDur)
+}
 
 func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 	log.Info("server.StartEndpoint starting ", "endpoint", name)
@@ -330,35 +364,6 @@ func groupStatusCode(code int) string {
 }
 
 func metricsMW(h http.Handler, endpoint string, globals *config.Globals) http.Handler {
-	opts := prometheus.SummaryOpts{
-		Subsystem:   "http",
-		Namespace:   "proxy",
-		ConstLabels: prometheus.Labels{"endpoint": endpoint},
-	}
-
-	labels := []string{"method", "code", "code_group"}
-
-	reqCnt := prometheus.MustRegisterOrGet(prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace:   opts.Namespace,
-			Subsystem:   opts.Subsystem,
-			Name:        "requests_total",
-			Help:        "Total number of HTTP requests made per url.",
-			ConstLabels: opts.ConstLabels,
-		},
-		labels,
-	)).(*prometheus.CounterVec)
-
-	reqDur := prometheus.MustRegisterOrGet(prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Namespace:   opts.Namespace,
-			Subsystem:   opts.Subsystem,
-			Name:        "request_duration_microseconds",
-			Help:        "The HTTP request latencies in microseconds.",
-			ConstLabels: opts.ConstLabels,
-		},
-		labels,
-	)).(*prometheus.SummaryVec)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
@@ -370,8 +375,8 @@ func metricsMW(h http.Handler, endpoint string, globals *config.Globals) http.Ha
 			method := strings.ToLower(r.Method)
 			code := strconv.Itoa(writer.Status)
 			group := groupStatusCode(writer.Status)
-			reqCnt.WithLabelValues(method, code, group).Inc()
-			reqDur.WithLabelValues(method, code, group).Observe(elapsed)
+			metricReqCnt.WithLabelValues(method, code, group, endpoint).Inc()
+			metricReqDur.WithLabelValues(method, code, group, endpoint).Observe(elapsed)
 		}()
 
 		h.ServeHTTP(writer, r)
