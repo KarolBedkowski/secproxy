@@ -8,13 +8,11 @@ import (
 )
 
 // LogHandler log all requests.
-func LogHandler(h http.Handler, prefix string, logkv ...interface{}) http.HandlerFunc {
-	orgLogkv := logkv
+func LogHandler(h http.Handler, prefix string, logkv map[string]interface{}) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		logkv = append(orgLogkv, "start")
-		logkv = append(logkv, start.Unix())
-		logger := l.LogForRequest(l.Log, r).New(logkv...)
+
+		logger := l.LogForRequest(l.Log, r).WithField("start", start.Unix()).WithFields(logkv)
 		logger.Debug(prefix + "begin request")
 
 		writer := &ResponseWriter{ResponseWriter: w, Status: 200}

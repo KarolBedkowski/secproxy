@@ -43,7 +43,7 @@ func StartAdmin(globals *config.Globals) {
 		common.LogHandler(
 			CsrfHandler(
 				SessionHandler(appRouter)),
-			"admin:", "module", "admin")))
+			"admin:", map[string]interface{}{"module": "admin"})))
 	http.Handle("/metrics", prometheus.Handler())
 
 	if globals.Config.AdminPanel.HTTPSAddress != "" {

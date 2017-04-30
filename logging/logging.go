@@ -1,15 +1,14 @@
 package logging
 
 import (
-	log "gopkg.in/inconshreveable/log15.v2"
+	"github.com/Sirupsen/logrus"
 	"net/http"
-	"os"
 )
 
 var (
-	Log         = log.New()
+	Log         = logrus.New()
 	logFilename string
-	debug       = 0
+	logLevel    = 0
 )
 
 func Init(logFileName string, debug int) {
@@ -17,23 +16,14 @@ func Init(logFileName string, debug int) {
 }
 
 func setSettings(level int, filename string) {
-	logFilename = filename
-	debug = level
-
-	filehandler := log.Must.FileHandler(filename, log.LogfmtFormat())
-	handler := log.MultiHandler(
-		filehandler,
-		log.StreamHandler(os.Stderr, log.TerminalFormat()))
-	if debug > 1 {
-		handler = log.CallerStackHandler("%+v", handler)
+	logLevel = level
+	if level > 0 {
+		Log.Level = logrus.DebugLevel
 	} else {
-		handler = log.CallerFileHandler(handler)
+		Log.Level = logrus.InfoLevel
 	}
-	if debug < 1 {
-		handler = log.LvlFilterHandler(log.LvlInfo, handler)
-	}
-	log.Root().SetHandler(handler)
-	log.Info("Logging started", "level", debug, "log_file", logFilename)
+
+	logFilename = filename
 }
 
 func LogFilename() string {
@@ -41,11 +31,11 @@ func LogFilename() string {
 }
 
 func DebugLevel() int {
-	return debug
+	return logLevel
 }
 
 func SetDebugLevel(level int) (ok bool) {
-	if level != debug {
+	if level != logLevel {
 		setSettings(level, logFilename)
 		ok = true
 	}
@@ -53,27 +43,32 @@ func SetDebugLevel(level int) (ok bool) {
 }
 
 func Debug(msg string, args ...interface{}) {
-	Log.Debug(msg, args...)
+	Log.Debugf(msg, args...)
 }
 
 func Info(msg string, args ...interface{}) {
-	Log.Info(msg, args...)
+	Log.Infof(msg, args...)
 }
 
 func Warn(msg string, args ...interface{}) {
-	Log.Warn(msg, args...)
+	Log.Warnf(msg, args...)
 }
 
 func Error(msg string, args ...interface{}) {
-	Log.Error(msg, args...)
+	Log.Errorf(msg, args...)
 }
 
 func Panic(msg string, args ...interface{}) {
-	Log.Crit(msg, args...)
+	Log.Panicf(msg, args...)
 }
 
-func LogForRequest(l log.Logger, r *http.Request) log.Logger {
-	ctx := log.Ctx{
+func LogForRequest(l interface{}, r *http.Request) *logrus.Entry {
+	var le *logrus.Entry
+	le, ok := l.(*logrus.Entry)
+	if !ok {
+		le = logrus.NewEntry(l.(*logrus.Logger))
+	}
+	f := logrus.Fields{
 		"method":     r.Method,
 		"host":       r.Host,
 		"url":        r.URL,
@@ -83,14 +78,15 @@ func LogForRequest(l log.Logger, r *http.Request) log.Logger {
 		//		"header":     r.Header,
 	}
 	if val, ok := r.Header["X-Forwarded-For"]; ok {
-		ctx["x_forward_for"] = val
+		f["x_forward_for"] = val
 	}
 	if val, ok := r.Header["X-Authenticated-User"]; ok {
-		ctx["x_authenticate_user"] = val
+		f["x_authenticate_user"] = val
 	}
-	return l.New(ctx)
+
+	return le.WithFields(f)
 }
 
-func NewLogger(module string) log.Logger {
-	return Log.New("module", module)
+func NewLogger(module string) *logrus.Entry {
+	return Log.WithField("module", module)
 }

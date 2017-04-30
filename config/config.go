@@ -54,7 +54,7 @@ func LoadConfiguration(filename string) (conf *AppConfiguration, err error) {
 	if !common.DirExists(conf.CertsDir) {
 		log.Info("config.LoadConfiguration dir for certs not exists - creating", "path", conf.CertsDir)
 		if err := os.MkdirAll(conf.CertsDir, 600); err != nil {
-			log.Crit("config.LoadConfiguration creating dir for certs failed",
+			log.Panic("config.LoadConfiguration creating dir for certs failed",
 				"path", conf.CertsDir, "err", err)
 		}
 	}

@@ -114,7 +114,7 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 	handler = httputil.NewSingleHostReverseProxy(uri)
 	handler = authenticationMW(handler, name, globals)
 	handler = counterMw(handler, name)
-	handler = common.LogHandler(handler, "server:", "endpoint", name, "module", "server")
+	handler = common.LogHandler(handler, "server:", map[string]interface{}{"endpoint": name, "module": "server"})
 	// TODO: stats handler
 	handler = metricsMW(handler, name, globals)
 
