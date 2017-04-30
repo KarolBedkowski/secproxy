@@ -33,15 +33,15 @@ func loginPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 	if r.Method == "POST" {
 		r.ParseForm()
 		if err := decoder.Decode(&ctx.Form, r.Form); err != nil {
-			logAuth.WithRequest(r).With("err", err).
-				Info("admin.loginPageHandler decode form error; form=%+v", r.Form)
+			log.With("err", err).
+				Info("Login page: decode form error; form=%+v", r.Form)
 			http.Error(w, http.StatusText(http.StatusInternalServerError)+" form error",
 				http.StatusInternalServerError)
 			return
 		}
 		if err := ctx.Form.Validate(); err != "" {
 			log.With("err", err).
-				Debug("admin.loginPageHandler validate form error; form=%+v", r.Form)
+				Debug("Login page: validate form error; form=%+v", r.Form)
 			RenderTemplate(w, ctx, "login", "login.tmpl", "flash.tmpl")
 			return
 		}
@@ -50,13 +50,13 @@ func loginPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 			log = log.With("user", user.Login)
 		}
 		if user == nil || !user.CheckPassword(ctx.Form.Password) {
-			log.Info("admin.loginPageHandler user pass failed")
+			log.Info("Login page: user pass failed")
 			ctx.Message = "Wrong login and/or password"
 			RenderTemplate(w, ctx, "login", "login.tmpl", "flash.tmpl")
 			return
 		}
 		if !user.Active {
-			log.Info("admin.loginPageHandler user account disable")
+			log.Info("Login page: user account disable")
 			ctx.Message = "Account inactive"
 			RenderTemplate(w, ctx, "login", "login.tmpl", "flash.tmpl")
 			return
@@ -64,9 +64,9 @@ func loginPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 		ctx.AddFlashMessage("User log in", "info")
 		ctx.Session.SetLoggedUser(NewSessionUser(user.Login, user.Role))
 		ctx.Save()
-		log.Info("user log in")
+		log.Info("Login page: user log in")
 		if back := ctx.Form.Back; back != "" {
-			log.Debug("admin.loginPageHandler back; dst=%v", back)
+			log.Debug("Login page: back after login to %v", back)
 			http.Redirect(w, r, back, http.StatusFound)
 		} else {
 			http.Redirect(w, r, "/", http.StatusFound)

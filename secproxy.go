@@ -43,7 +43,7 @@ func main() {
 		os.Exit(0)
 	}()
 
-	log.Info("Setting maxprocs", "numcpu", runtime.NumCPU())
+	log.Info("Setting maxprocs; numcpu=%d", runtime.NumCPU())
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	if resources.Init() {
@@ -65,7 +65,7 @@ func main() {
 	admin.StartAdmin(globals)
 
 	log.Info("Admin Panel started")
-	log.Info("SecProxy ready", "startup_time", time.Now().Sub(startTime))
+	log.Info("SecProxy ready; startup_time=%s", time.Now().Sub(startTime))
 
 	done := make(chan bool)
 	<-done

@@ -39,7 +39,7 @@ func certUploadPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePag
 	file, handler, err := r.FormFile("uploadfile")
 	if err != nil {
 		log.With("err", err).
-			Info("certUploadPageHandler - get form file error")
+			Info("Upload cert: get form file error")
 		bctx.AddFlashMessage("Upload file error: "+err.Error(), "error")
 		bctx.Save()
 		http.Redirect(w, r, "/certs/", http.StatusFound)
@@ -49,7 +49,7 @@ func certUploadPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePag
 	f, err := os.OpenFile(path.Join(bctx.Globals.Config.CertsDir, handler.Filename), os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		log.With("err", err).
-			Warn("certUploadPageHandler - open file %s error", handler.Filename)
+			Warn("ERROR: upload cert: open file %s error", handler.Filename)
 		bctx.AddFlashMessage("Upload file error: "+err.Error(), "error")
 		http.Redirect(w, r, "/certs/", http.StatusFound)
 		bctx.Save()
@@ -57,11 +57,12 @@ func certUploadPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePag
 	}
 	defer f.Close()
 	if _, err := io.Copy(f, file); err == nil {
-		log.Info("certUploadPageHandler upload file %s success", handler.Filename)
+		log.With("filename", handler.Filename).
+			Info("Upload cert: success")
 		bctx.AddFlashMessage("Upload file success", "success")
 	} else {
-		log.With("err", err).
-			Warn("certUploadPageHandler upload file %s error", handler.Filename)
+		log.With("err", err).With("filename", handler.Filename).
+			Warn("ERROR: Upload cert: upload file error")
 		bctx.AddFlashMessage("Upload file error: "+err.Error(), "error")
 	}
 	bctx.Save()
@@ -76,7 +77,7 @@ func certDeletePageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePag
 		certname = certnames[0]
 	}
 	if certname == "" {
-		log.Info("certDeletePageHandler missing certname; form=%+v", r.Form)
+		log.Debug("Delete certificate: error - missing certname; form=%+v", r.Form)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -84,7 +85,7 @@ func certDeletePageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePag
 	log = log.With("certname", certname)
 
 	if epname, used := bctx.Globals.CertUsed(certname); used {
-		log.Info("certDeletePageHandler - cert used in endpoint=%s", epname)
+		log.Info("Delete certificate: error - cert used in endpoint=%s", epname)
 		bctx.AddFlashMessage("File is used in "+epname+" - can't be deleted", "error")
 		bctx.Save()
 		http.Redirect(w, r, "/certs/", http.StatusFound)
@@ -96,16 +97,16 @@ func certDeletePageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePag
 	certsdir, _ := filepath.Abs(bctx.Globals.Config.CertsDir)
 	certsdir = filepath.Clean(certsdir)
 	if certname == "" || !strings.HasPrefix(certname, certsdir) || certname == certsdir {
-		log.Info("certDeletePageHandler invalid cert")
+		log.Info("Delete certificate error - invalid cert")
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 	if err := os.Remove(certname); err == nil {
-		log.Info("certDeletePageHandler cert deleted")
+		log.Info("Delete certificate: success")
 		bctx.AddFlashMessage("File deleted", "success")
 	} else {
 		log.With("err", err).
-			Warn("certDeletePageHandler cert deleted error")
+			Warn("ERROR: Delete certificate: error")
 		bctx.AddFlashMessage("File delete error: "+err.Error(), "error")
 	}
 	bctx.Save()

@@ -3,6 +3,7 @@ package admin
 import (
 	"html/template"
 	"io/ioutil"
+	"k.prv/secproxy/logging"
 	res "k.prv/secproxy/resources"
 	"net/http"
 	"os"
@@ -11,8 +12,9 @@ import (
 )
 
 var (
-	cacheLock  sync.Mutex
-	cacheItems = map[string]*template.Template{}
+	cacheLock    sync.Mutex
+	cacheItems   = map[string]*template.Template{}
+	logTemplates = logging.NewLogger("mw_gzip")
 )
 
 var funcMap = template.FuncMap{
@@ -44,7 +46,10 @@ func getTemplate(name string, nocache bool, filenames ...string) (tmpl *template
 				c, _ := ioutil.ReadAll(f)
 				ctemplate = template.Must(ctemplate.Parse(string(c)))
 			} else {
-				log.Error("RenderTemplate get template error", "name", name, "err", err)
+				logTemplates.
+					With("err", err).
+					With("template", name).
+					Error("ERROR: RenderTemplate get template error")
 			}
 		}
 		if ctemplate.Lookup("scripts") == nil {
@@ -69,7 +74,11 @@ func RenderTemplate(w http.ResponseWriter, ctx PageContextInterface, name string
 	}
 	err := ctemplate.ExecuteTemplate(w, MainTemplateName, ctx)
 	if err != nil {
-		log.Error("RenderTemplate execution failed", "err", err, "name", name, "filenames", filenames)
+		logTemplates.
+			With("err", err).
+			With("template", name).
+			With("filenames", filenames).
+			Error("ERROR: RenderTemplate execution failed")
 	}
 }
 
@@ -81,14 +90,15 @@ var StdTemplates = []string{"base.tmpl", "flash.tmpl"}
 // First template file name is used as template name.
 func RenderTemplateStd(w http.ResponseWriter, ctx PageContextInterface, filenames ...string) {
 	filenames = append(filenames, StdTemplates...)
-	log.Debug("RenderTemplateStd", "filenames", filenames)
+	logTemplates.With("filenames", filenames).
+		Debug("RenderTemplateStd")
 	RenderTemplate(w, ctx, filenames[0], filenames...)
 }
 
 func fileExists(name string) bool {
 	if _, err := os.Stat(name); err != nil {
 		if os.IsNotExist(err) {
-			log.Error("template not exists", "name", name)
+			logTemplates.Error("ERROR: template %s not exists", name)
 		}
 		return false
 	}

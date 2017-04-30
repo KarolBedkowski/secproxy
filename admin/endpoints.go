@@ -90,7 +90,7 @@ func endpointPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 	}
 	epname, ok := vars["name"]
 	if !ok || epname == "" {
-		log.Info("admin.endpointPageHandler missing name")
+		log.Debug("Endpoint edit: missing name")
 		http.Error(w, "Missing name", http.StatusBadRequest)
 		return
 	}
@@ -101,7 +101,7 @@ func endpointPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 		if ep := bctx.Globals.GetEndpoint(epname); ep != nil {
 			ctx.Form.EndpointConf = ep.Clone()
 		} else {
-			log.Info("admin.endpointPageHandler ep %s not found", epname)
+			log.Info("Endpoint edit: endpoint %s not found", epname)
 			http.Error(w, "Endpoint not found", http.StatusNotFound)
 			return
 		}
@@ -115,7 +115,8 @@ func endpointPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 	case "POST":
 		r.ParseForm()
 		if err := decoder.Decode(&ctx.Form, r.Form); err != nil {
-			log.With("err", err).Error("admin.endpointPageHandler decode form error; form=%+v", r.Form)
+			log.With("err", err).
+				Info("Endpoint edit: decode form error; form=%+v", r.Form)
 			break
 		}
 		if errors := ctx.Form.Validate(bctx.Globals, newEp); len(errors) > 0 {
@@ -125,7 +126,7 @@ func endpointPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 		bctx.Globals.SaveEndpoint(ctx.Form.EndpointConf)
 		ctx.AddFlashMessage("Endpoint saved", "success")
 		ctx.Save()
-		log.Info("Endpoint saved")
+		log.Info("Endpoint edit: saved")
 		http.Redirect(w, r, "/endpoints/", http.StatusFound)
 		return
 	}
@@ -140,7 +141,7 @@ func endpointActionPageHandler(w http.ResponseWriter, r *http.Request, bctx *Bas
 	vars := mux.Vars(r)
 	epname, ok := vars["name"]
 	if !ok || epname == "" {
-		log.Info("admin.endpointActionPageHandler missing name")
+		log.Debug("Endpoint action: missing name")
 		http.Error(w, "Missing name", http.StatusBadRequest)
 		return
 	}
@@ -149,7 +150,7 @@ func endpointActionPageHandler(w http.ResponseWriter, r *http.Request, bctx *Bas
 
 	action, ok := vars["action"]
 	if !ok || action == "" {
-		log.Error("admin.endpointActionPageHandler missing action")
+		log.Info("Endpoint action: missing action")
 		http.Error(w, "Missing action", http.StatusBadRequest)
 		return
 	}
@@ -175,7 +176,7 @@ func endpointActionPageHandler(w http.ResponseWriter, r *http.Request, bctx *Bas
 		bctx.AddFlashMessage("Endpoint deleted", "success")
 		break
 	default:
-		log.Info("admin.endpointActionPageHandler invalid action=%v", action)
+		log.Info("Endpoint action: invalid action=%v", action)
 	}
 	bctx.Save()
 	http.Redirect(w, r, "/endpoints/", http.StatusFound)

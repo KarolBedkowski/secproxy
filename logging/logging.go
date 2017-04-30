@@ -88,6 +88,7 @@ type Logger interface {
 	Error(string, ...interface{})
 	Panic(string, ...interface{})
 	With(key string, value interface{}) Logger
+	WithFields(values map[string]interface{}) Logger
 	WithRequest(r *http.Request) Logger
 }
 
@@ -134,6 +135,10 @@ func (l logger) Panic(msg string, args ...interface{}) {
 
 func (l logger) With(key string, value interface{}) Logger {
 	return logger{l.entry.WithField(key, value)}
+}
+
+func (l logger) WithFields(values map[string]interface{}) Logger {
+	return logger{l.entry.WithFields(values)}
 }
 
 func (l logger) WithRequest(r *http.Request) Logger {

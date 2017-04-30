@@ -10,7 +10,7 @@ import (
 
 var (
 	AppVersion = "dev"
-	log        = logging.NewLogger("config")
+	logConfig  = logging.NewLogger("config.config")
 )
 
 type (
@@ -37,8 +37,8 @@ type (
 
 // LoadConfiguration from given file
 func LoadConfiguration(filename string) (conf *AppConfiguration, err error) {
-	llog := log.With("filename", filename)
-	llog.Info("config.LoadConfiguration")
+	llog := logConfig.With("filename", filename)
+	llog.Info("Config: loading...")
 	var content []byte
 	conf = &AppConfiguration{}
 	conf.loadDefaults()
@@ -48,14 +48,14 @@ func LoadConfiguration(filename string) (conf *AppConfiguration, err error) {
 			panic(err)
 		}
 	} else {
-		llog.With("err", err).Error("config.LoadConfiguration error")
+		llog.With("err", err).Error("Config: file load error")
 	}
 	conf.validate()
 
 	if !common.DirExists(conf.CertsDir) {
-		llog.Info("config.LoadConfiguration dir for certs not exists - creating %s", conf.CertsDir)
+		llog.Info("Config: dir for certs not exists - creating %s", conf.CertsDir)
 		if err := os.MkdirAll(conf.CertsDir, 600); err != nil {
-			llog.With("err", err).Panic("config.LoadConfiguration creating dir %s for certs failed", conf.CertsDir)
+			llog.With("err", err).Panic("Config: creating dir %s for certs failed", conf.CertsDir)
 		}
 	}
 
@@ -64,16 +64,16 @@ func LoadConfiguration(filename string) (conf *AppConfiguration, err error) {
 
 // SaveConfiguration write current configuration to json file
 func (ac *AppConfiguration) SaveConfiguration(filename string) error {
-	llog := log.With("filename", filename)
-	llog.Info("config.SaveConfiguration")
+	llog := logConfig.With("filename", filename)
+	llog.Info("Config: saving...")
 	data, err := toml.Marshal(*ac)
 	if err != nil {
-		log.With("err", err).Error("config.SaveConfiguration Marshal error; conf=%+v", ac)
+		llog.With("err", err).Error("Config: save marshal error; conf=%+v", ac)
 		return err
 	}
 	err = ioutil.WriteFile(filename, data, 0700)
 	if err != nil {
-		log.With("err", err).Error("config.SaveConfiguration error")
+		llog.With("err", err).Error("Config: save error")
 	}
 	return err
 }
@@ -98,7 +98,7 @@ func (ac *AppConfiguration) validate() bool {
 func (ac *AppConfiguration) String() string {
 	data, err := toml.Marshal(*ac)
 	if err != nil {
-		log.With("err", err).Error("config.String Marshal error; conf=%+v", ac)
+		logConfig.With("err", err).Error("Config: marshal error; conf=%+v", ac)
 		return err.Error()
 	}
 	return string(data)

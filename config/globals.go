@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/boltdb/bolt"
+	"k.prv/secproxy/logging"
 	"os"
 	"path/filepath"
 	"sync"
@@ -29,6 +30,8 @@ var (
 
 	configFilenameFlag = flag.String("config", "./config.toml", "Configuration file name")
 	devModeFlag        = flag.Bool("devMode", false, "Run in development mode")
+
+	logGlobals = logging.NewLogger("config.globals")
 )
 
 func NewGlobals() *Globals {
@@ -38,26 +41,26 @@ func NewGlobals() *Globals {
 	}
 	globals.ReloadConfig()
 	if globals.DevMode {
-		log.Warn("DEV MODE ENABLED")
+		logGlobals.Warn("DEV MODE ENABLED")
 	}
 	return globals
 }
 
 func (g *Globals) Close() error {
-	log.Info("globals.Close")
+	logGlobals.Info("Globals: Closeing")
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if g.db != nil {
 		g.db.Close()
 		g.db = nil
 	}
-	log.Info("globals.Close DONE")
+	logGlobals.Info("globals.Close DONE")
 	return nil
 }
 
 func (g *Globals) ReloadConfig() {
-	llog := log.With("filename", g.confFilename)
-	llog.Info("Globals.ReloadConfig")
+	llog := logGlobals.With("filename", g.confFilename)
+	llog.Info("Globals: Reloading config")
 	g.Close()
 
 	g.mu.Lock()
@@ -66,19 +69,20 @@ func (g *Globals) ReloadConfig() {
 	g.Config, _ = LoadConfiguration(g.confFilename)
 
 	if g.Config.DBFilename == "" {
-		llog.Error("Missing endpoints configuration file; using ./database.db")
+		llog.Warn("Globals: Missing endpoints configuration file; using ./database.db")
 		g.Config.DBFilename = "./database.db"
 	}
 
 	g.openDatabases()
-	llog.Info("Globals.ReloadConfig DONE")
+	llog.Info("Globals: configuration reloaded")
 }
 
 func (g *Globals) openDatabases() {
-	log.Debug("globals.openDatabases START")
+	logGlobals.Debug("Globals: opening database")
 	bdb, err := bolt.Open(g.Config.DBFilename, 0600, &bolt.Options{Timeout: 10 * time.Second})
 	if err != nil {
-		panic("config.g open  db error " + err.Error())
+		logGlobals.With("err", err).Panic("Globals: open database failed")
+		return
 	}
 
 	err = bdb.Update(func(tx *bolt.Tx) error {
@@ -93,13 +97,13 @@ func (g *Globals) openDatabases() {
 
 	if err != nil {
 		bdb.Close()
-		panic("open create buckets error: " + err.Error())
+		logGlobals.With("err", err).Panic("Globals: create buckets error")
 	}
 
 	g.db = bdb
 
 	if u := g.GetUser("admin"); u == nil {
-		log.Info("config.g openDatabases creating 'admin' user with password 'admin'")
+		logGlobals.Info("Globals: creating 'admin' user with password 'admin'")
 		admin := &User{
 			Login:  "admin",
 			Name:   "Administrator",
@@ -110,7 +114,7 @@ func (g *Globals) openDatabases() {
 		g.SaveUser(admin)
 	} else {
 		if !u.Active {
-			log.Warn("config.g openDatabases re-active Admin user")
+			logGlobals.Warn("Globals: re-active Admin user")
 			u.Active = true
 			g.SaveUser(u)
 		}
@@ -118,7 +122,7 @@ func (g *Globals) openDatabases() {
 	if g.GetUser("admin") == nil {
 		panic("missing admin")
 	}
-	log.Debug("globals.openDatabases DONE")
+	logGlobals.Debug("Globals: database opened")
 }
 
 func (g *Globals) GetUser(login string) (u *User) {
@@ -128,17 +132,20 @@ func (g *Globals) GetUser(login string) (u *User) {
 		v = b.Get(login2key(login))
 		return nil
 	})
+
+	ilog := logGlobals.With("login", login)
+
 	if err != nil {
-		log.With("err", err).Info("globals.GetUser error")
+		ilog.With("err", err).Warn("Globals: get user error")
 	}
 	if v == nil {
-		log.With("err", "not found").Debug("globals.GetUser user %s not found", login)
+		ilog.With("err", "not found").Debug("Globals: user not found")
 		return nil
 	}
 
 	u, err = decodeUser(v)
 	if err != nil {
-		log.With("err", err).Debug("globals.GetUser decode user %s error", login)
+		ilog.With("err", err).Warn("Globals: decode user error")
 	}
 
 	return u
@@ -159,12 +166,12 @@ func decodeUser(buff []byte) (u *User, err error) {
 }
 
 func (g *Globals) SaveUser(u *User) {
-	llog := log.With("user", u.Login)
-	llog.Debug("globals.SaveUser")
+	llog := logGlobals.With("user", u.Login)
+	llog.Debug("Globals: saving user...")
 	r := new(bytes.Buffer)
 	enc := gob.NewEncoder(r)
 	if err := enc.Encode(u); err != nil {
-		llog.With("err", err).Warn("globals.SaveUser encode error; u=%+v", u)
+		llog.With("err", err).Warn("Globals: save user - encode error; u=%+v", u)
 		return
 	}
 	err := g.db.Update(func(tx *bolt.Tx) error {
@@ -172,7 +179,9 @@ func (g *Globals) SaveUser(u *User) {
 		return b.Put(login2key(u.Login), r.Bytes())
 	})
 	if err != nil {
-		llog.With("err", err).Warn("globals.SaveUser set error")
+		llog.With("err", err).Warn("Globals: save error")
+	} else {
+		llog.Info("Globals: user saved")
 	}
 }
 
@@ -190,7 +199,7 @@ func (g *Globals) GetUsers() (users []*User) {
 		})
 	})
 	if err != nil {
-		log.With("err", err).Error("GetUsers error")
+		logGlobals.With("err", err).Error("Globals: get users error")
 	}
 	return
 }
@@ -203,14 +212,12 @@ func decodeEndpoint(buff []byte) (ec *EndpointConf, err error) {
 	ec = &EndpointConf{}
 	r := bytes.NewBuffer(buff)
 	dec := gob.NewDecoder(r)
-	if err := dec.Decode(ec); err != nil {
-		return nil, err
-	}
-	return ec, nil
+	err = dec.Decode(ec)
+	return ec, err
 }
 
 func (g *Globals) GetEndpoint(name string) (e *EndpointConf) {
-	llog := log.With("endpoint", name)
+	llog := logGlobals.With("endpoint", name)
 	var v []byte
 	err := g.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(endpointsBucket)
@@ -218,27 +225,27 @@ func (g *Globals) GetEndpoint(name string) (e *EndpointConf) {
 		return nil
 	})
 	if err != nil {
-		llog.With("err", err).Warn("globals.GetEndpoint error")
+		llog.With("err", err).Warn("Globals: get endpoint error")
 		return nil
 	}
 	if v == nil {
-		llog.With("err", err).Debug("globals.GeEndpoint endpoint %s not found", name)
+		llog.With("err", err).Debug("Globals: endpoint not found")
 		return nil
 	}
 	e, err = decodeEndpoint(v)
 	if err != nil {
-		llog.With("err", err).Debug("globals.GeEndpoint decode endpoint %s error", name)
+		llog.With("err", err).Warn("Globals: decode loaded endpoint error")
 	}
 	return e
 }
 
 func (g *Globals) SaveEndpoint(e *EndpointConf) {
-	llog := log.With("endpoint", e.Name)
-	llog.Info("globals.SaveEndpoint")
+	llog := logGlobals.With("endpoint", e.Name)
+	llog.Info("Globals: saving endpoint...")
 	r := new(bytes.Buffer)
 	enc := gob.NewEncoder(r)
 	if err := enc.Encode(e); err != nil {
-		llog.With("err", err).Warn("globals.SaveEndpoint encode error; e=%+v", e)
+		llog.With("err", err).Warn("Globals: encode endpoint for save error; e=%+v", e)
 		return
 	}
 	err := g.db.Update(func(tx *bolt.Tx) error {
@@ -246,7 +253,9 @@ func (g *Globals) SaveEndpoint(e *EndpointConf) {
 		return b.Put(endpoint2key(e.Name), r.Bytes())
 	})
 	if err != nil {
-		llog.With("err", err).Warn("globals.SaveEndpoint set error")
+		llog.With("err", err).Warn("Globals: save endpoint error")
+	} else {
+		llog.Info("Globals: endpoint saved")
 	}
 }
 
@@ -256,7 +265,7 @@ func (g *Globals) DeleteEndpoint(name string) (ok bool) {
 		return b.Delete(endpoint2key(name))
 	})
 	if err != nil {
-		log.With("err", err).With("endpoint", name).Warn("globals.DeleteEndpoint error")
+		logGlobals.With("err", err).With("endpoint", name).Warn("Globals: delete endpoint failed")
 	}
 	return err == nil
 }
@@ -267,14 +276,14 @@ func (g *Globals) GetEndpoints() (eps []*EndpointConf) {
 		return b.ForEach(func(k, v []byte) error {
 			ep, err := decodeEndpoint(v)
 			if err != nil {
-				return fmt.Errorf("decodeEndpoint error %s", err)
+				return fmt.Errorf("decode endpoint error %s", err)
 			}
 			eps = append(eps, ep)
 			return nil
 		})
 	})
 	if err != nil {
-		log.With("err", err).Error("GetUsers next error")
+		logGlobals.With("err", err).Error("Globals: get endpoints error")
 	}
 	return
 }
@@ -283,7 +292,9 @@ func (g *Globals) FindCerts() (names []string) {
 	filepath.Walk(g.Config.CertsDir,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				log.With("err", err).Error("globals.FindCerts error; path=%s", g.Config.CertsDir)
+				logGlobals.With("err", err).
+					With("path", g.Config.CertsDir).
+					Error("Globals: find certs error")
 				return err
 			}
 			if !info.IsDir() {

@@ -5,6 +5,7 @@ package admin
 
 import (
 	"io"
+	"k.prv/secproxy/logging"
 	res "k.prv/secproxy/resources"
 	"mime"
 	"net/http"
@@ -13,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 )
+
+var logMwGzip = logging.NewLogger("mw_gzip")
 
 type gzipFileHandler struct {
 	fs           http.FileSystem
@@ -70,7 +73,10 @@ func serveFile(w http.ResponseWriter, r *http.Request, fs http.FileSystem,
 		}
 		http.ServeContent(w, r, stat.Name(), stat.ModTime(), file)
 	} else {
-		log.Error("Asset open error", "name", name, "err", err.Error())
+		logMwGzip.
+			With("err", err).
+			With("asset", name).
+			Error("MW GZIP: Asset open error")
 		http.NotFound(w, r)
 	}
 }

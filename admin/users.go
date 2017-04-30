@@ -49,6 +49,7 @@ func (f userForm) Validate(globals *config.Globals, newUser bool) (errors map[st
 }
 
 func userPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
+	log := logUsers.WithRequest(r).With("user", bctx.UserLogin())
 	vars := mux.Vars(r)
 	ctx := &struct {
 		*BasePageContext
@@ -63,7 +64,7 @@ func userPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 	}
 	login, ok := vars["login"]
 	if !ok || login == "" {
-		logging.LogForRequest(logUsers, r).Error("admin.userPageHandler missing login", "vars", vars)
+		log.Debug("User edit: missing login; vars=%+v", vars)
 		http.Error(w, "Missing login", http.StatusBadRequest)
 		return
 	}
@@ -74,7 +75,7 @@ func userPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 		if user := bctx.Globals.GetUser(login); user != nil {
 			ctx.Form.User = user.Clone()
 		} else {
-			logging.LogForRequest(logUsers, r).Error("admin.userPageHandler user not found", "login", login)
+			log.Error("admin.userPageHandler user %s not found", login)
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
 		}
@@ -87,16 +88,17 @@ func userPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 		var currLogin = ctx.Form.User.Login
 		ctx.Form.User.Active = false // post not send unchecked checkboxes
 		if err := decoder.Decode(&ctx.Form, r.Form); err != nil {
-			logging.LogForRequest(logUsers, r).Error("admin.userPageHandler decode form error ", "err", err, "form", r.Form)
+			log.With("err", err).
+				Info("User edit: decode form error; form=%+v", r.Form)
 			break
 		}
 		if !newUser && ctx.Form.User.Login != login {
-			logging.LogForRequest(logUsers, r).Error("admin.userPageHandler login != form.login ", "login", login, "login-form", ctx.Form.User.Login)
+			log.Info("User edit: login != form.login")
 			http.Error(w, "Wrong/changed login", http.StatusBadRequest)
 			return
 		}
 		if !newUser && ctx.Form.User.Login != currLogin {
-			logging.LogForRequest(logUsers, r).Warn("login changed - reverting")
+			log.Info("User edit: login changed - reverting")
 			ctx.Form.User.Login = currLogin
 		}
 		if errors := ctx.Form.Validate(bctx.Globals, newUser); len(errors) > 0 {
@@ -109,6 +111,7 @@ func userPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 		bctx.Globals.SaveUser(ctx.Form.User)
 		ctx.AddFlashMessage("User saved", "success")
 		ctx.Save()
+		log.Info("User edit: user saved")
 		http.Redirect(w, r, "/users/", http.StatusFound)
 		return
 	}
@@ -137,7 +140,7 @@ func chpassPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCon
 
 	suser, ok := bctx.Session.GetLoggedUser()
 	if !ok || suser == nil {
-		logging.LogForRequest(logUsers, r).Error("admin.chpassPageHandler user not logged")
+		log.Info("Change password: user not logged")
 		http.Error(w, "Not logged user", http.StatusBadRequest)
 		return
 	}
@@ -148,13 +151,14 @@ func chpassPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCon
 	case "POST":
 		r.ParseForm()
 		if err := decoder.Decode(&ctx.Form, r.Form); err != nil {
-			log.With("err", err).Error("admin.chpassPageHandler decode form error; form=%+v", r.Form)
+			log.With("err", err).
+				Error("Change password: decode form error; form=%+v", r.Form)
 			break
 		}
 
 		user := bctx.Globals.GetUser(suser.Login)
 		if user == nil {
-			log.Error("admin.chpassPageHandler user %s not found", suser.Login)
+			log.Error("Change password: user %s not found", suser.Login)
 			http.Error(w, "Bad user", http.StatusBadRequest)
 			return
 		}
@@ -170,6 +174,7 @@ func chpassPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCon
 		}
 
 		if user.Login == "admin" {
+			// can't disable admin account
 			user.Active = true
 		}
 
@@ -177,7 +182,7 @@ func chpassPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCon
 		bctx.Globals.SaveUser(user)
 		ctx.AddFlashMessage("Password updated", "success")
 		ctx.Save()
-		log.Error("admin.chpassPageHandler password fror %s changed", suser.Login)
+		log.Info("Change password: password for %s changed", suser.Login)
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}

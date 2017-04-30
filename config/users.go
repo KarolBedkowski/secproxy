@@ -2,7 +2,10 @@ package config
 
 import (
 	"golang.org/x/crypto/bcrypt"
+	"k.prv/secproxy/logging"
 )
+
+var logUsers = logging.NewLogger("config.users")
 
 type (
 	User struct {
@@ -28,7 +31,9 @@ func (u *User) UpdatePassword(newPass string) {
 	} else {
 		data, err := bcrypt.GenerateFromPassword([]byte(newPass), bcrypt.DefaultCost)
 		if err != nil {
-			log.Error("UpdatePassword error", "user", u, "err", err)
+			logUsers.With("err", err).
+				With("user", u).
+				Warn("UpdatePassword error")
 		} else {
 			u.Password = string(data)
 		}

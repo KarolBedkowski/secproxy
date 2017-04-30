@@ -13,7 +13,7 @@ func BuildQuery(pairs ...string) (query string) {
 		return ""
 	}
 	if pairsLen%2 != 0 {
-		logging.Warn("helpers.BuildQuery error - wron number of argiments", "args", pairs)
+		logging.Warn("BuildQuery: error - wrong number of arguments: %+v", pairs)
 		return ""
 	}
 	query = "?"

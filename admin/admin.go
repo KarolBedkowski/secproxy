@@ -13,7 +13,7 @@ import (
 var (
 	appRouter = mux.NewRouter()
 	decoder   = schema.NewDecoder()
-	log       = logging.NewLogger("admin")
+	logAdmin  = logging.NewLogger("admin")
 )
 
 func StartAdmin(globals *config.Globals) {
@@ -49,24 +49,24 @@ func StartAdmin(globals *config.Globals) {
 	http.Handle("/metrics", prometheus.Handler())
 
 	if globals.Config.AdminPanel.HTTPSAddress != "" {
-		log.Info("admin.StartAdmin Listen HTTPS; address=%v", globals.Config.AdminPanel.HTTPSAddress)
+		logAdmin.Info("Starting admin panel on https %v", globals.Config.AdminPanel.HTTPSAddress)
 
 		go func() {
 			if err := http.ListenAndServeTLS(globals.Config.AdminPanel.HTTPSAddress,
 				globals.Config.AdminPanel.SslCert, globals.Config.AdminPanel.SslKey, nil); err != nil {
-				log.With("err", err).
-					Panic("admin.StartAdmin Error listening https; address=%v", globals.Config.AdminPanel.HTTPSAddress)
+				logAdmin.With("err", err).
+					Panic("ERROR: start listen on HTTPS failed; address=%v", globals.Config.AdminPanel.HTTPSAddress)
 			}
 		}()
 	}
 
 	if globals.Config.AdminPanel.HTTPAddress != "" {
-		log.Info("admin.StartAdmin Listen; address=%v", globals.Config.AdminPanel.HTTPAddress)
+		logAdmin.Info("Starting admin panel on http %v", globals.Config.AdminPanel.HTTPAddress)
 
 		go func() {
 			if err := http.ListenAndServe(globals.Config.AdminPanel.HTTPAddress, nil); err != nil {
-				log.With("err", err).
-					Panic("admin.StartAdmin Error listening http; address=%v", globals.Config.AdminPanel.HTTPAddress)
+				logAdmin.With("err", err).
+					Panic("ERROR: start listen on HTTP failed; address=%v", globals.Config.AdminPanel.HTTPAddress)
 			}
 		}()
 	}
@@ -81,12 +81,13 @@ func mainPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 func GetNamedURL(name string, pairs ...string) (url string) {
 	route := appRouter.Get(name)
 	if route == nil {
-		log.Warn("GetNamedURL can't find route: %v", name)
+		logAdmin.Warn("ERROR: GetNamedURL can't find route: %v", name)
 		return ""
 	}
 	rurl, err := route.URL(pairs...)
 	if err != nil {
-		log.With("err", err).Warn("GetNamedURL can't construct url; name=%v, pairs=%+v", name, pairs)
+		logAdmin.With("err", err).
+			Warn("ERROR: GetNamedURL can't construct url; name=%v, pairs=%+v", name, pairs)
 		return ""
 	}
 	return rurl.String()

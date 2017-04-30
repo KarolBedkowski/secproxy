@@ -1,7 +1,7 @@
 package common
 
 import (
-	l "k.prv/secproxy/logging"
+	"k.prv/secproxy/logging"
 	"net/http"
 	"runtime/debug"
 	"time"
@@ -9,11 +9,12 @@ import (
 
 // LogHandler log all requests.
 func LogHandler(h http.Handler, prefix string, logkv map[string]interface{}) http.HandlerFunc {
+	l := logging.NewLogger("common.logging_mw")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
-		logger := l.LogForRequest(l.Log, r).WithField("start", start.Unix()).WithFields(logkv)
-		logger.Debug(prefix + "begin request")
+		log := l.WithRequest(r).With("start", start.Unix()).WithFields(logkv)
+		log.Debug(prefix + " begin request")
 
 		writer := &ResponseWriter{ResponseWriter: w, Status: 200}
 
@@ -21,9 +22,17 @@ func LogHandler(h http.Handler, prefix string, logkv map[string]interface{}) htt
 			end := time.Now()
 			stack := debug.Stack()
 			if err := recover(); err == nil {
-				logger.Debug(prefix+"request finished", "status", writer.Status, "end", end.Unix(), "time", end.Sub(start).String())
+				log.With("status", writer.Status).
+					With("end", end.Unix()).
+					With("time", end.Sub(start).String()).
+					Debug(prefix + " request finished")
 			} else {
-				logger.Debug(prefix+"request error", "status", writer.Status, "err", err, "end", end.Unix(), "time", end.Sub(start).String(), "st", string(stack))
+				log.With("status", writer.Status).
+					With("err", err).
+					With("end", end.Unix()).
+					With("duration", end.Sub(start).String()).
+					With("stack", string(stack)).
+					Info(prefix + " request error")
 			}
 		}()
 
