@@ -20,11 +20,11 @@ func InitSettingsHandlers(globals *config.Globals, parentRotuer *mux.Route) {
 func settingsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
 	ctx := &struct {
 		*BasePageContext
-		LogLevel      int
+		LogLevel      string
 		Configuration string
 	}{
 		BasePageContext: bctx,
-		LogLevel:        logging.DebugLevel(),
+		LogLevel:        logging.Log.Level.String(),
 		Configuration:   bctx.Globals.Config.String(),
 	}
 
@@ -37,24 +37,8 @@ func setdebugPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 	if levels, ok := r.Form["l"]; ok && len(levels) > 0 {
 		level = levels[0]
 	}
-	res := false
-	switch level {
-	case "0":
-		res = logging.SetDebugLevel(0)
-		break
-	case "1":
-		res = logging.SetDebugLevel(1)
-		break
-	case "2":
-		res = logging.SetDebugLevel(2)
-		break
-	default:
-		logging.LogForRequest(loggerSett, r).Warn("setdebugPageHandler missing level", "form", r.Form)
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
 
-	if res {
+	if logging.SetLogLevel(level) {
 		logging.LogForRequest(loggerSett, r).Warn("setdebugPageHandler change level", "level", level)
 		bctx.AddFlashMessage("Logging level changed", "success")
 		bctx.Save()

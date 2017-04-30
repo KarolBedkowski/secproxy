@@ -7,9 +7,9 @@
 <div class="uk-panel uk-panel-box uk-margin-bottom">
 	<h3 class="uk-panel-title">Debug level</h3>
 	<div class="uk-button-group">
-		<a class="uk-button {{ if eq .LogLevel 0 }}uk-active{{ end }}" href="/settings/setdebug?l=0">Normal</a>
-		<a class="uk-button {{ if eq .LogLevel 1 }}uk-active{{ end }}" href="/settings/setdebug?l=1">Debug</a>
-		<a class="uk-button {{ if eq .LogLevel 2 }}uk-active{{ end }}" href="/settings/setdebug?l=2">Verbose</a>
+		<a class="uk-button {{ if eq .LogLevel "warning" }}uk-active{{ end }}" href="/settings/setdebug?l=warning">Warning</a>
+		<a class="uk-button {{ if eq .LogLevel "info" }}uk-active{{ end }}" href="/settings/setdebug?l=info">Info</a>
+		<a class="uk-button {{ if eq .LogLevel "debug" }}uk-active{{ end }}" href="/settings/setdebug?l=debug">Debug</a>
 	</div>
 </div>
 

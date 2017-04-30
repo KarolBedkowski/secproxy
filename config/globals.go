@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"encoding/gob"
+	"flag"
 	"fmt"
 	"github.com/boltdb/bolt"
 	"os"
@@ -13,25 +14,32 @@ import (
 
 type (
 	Globals struct {
-		Config       *AppConfiguration
+		Config  *AppConfiguration
+		DevMode bool
+
 		confFilename string
-
-		db *bolt.DB
-
-		mu sync.RWMutex
+		db           *bolt.DB
+		mu           sync.RWMutex
 	}
 )
 
 var (
 	usersBucket     = []byte("users")
 	endpointsBucket = []byte("endpoints")
+
+	configFilenameFlag = flag.String("config", "./config.toml", "Configuration file name")
+	devModeFlag        = flag.Bool("devMode", false, "Run in development mode")
 )
 
-func NewGlobals(confFilename string) *Globals {
+func NewGlobals() *Globals {
 	globals := &Globals{
-		confFilename: confFilename,
+		confFilename: *configFilenameFlag,
+		DevMode:      *devModeFlag,
 	}
 	globals.ReloadConfig()
+	if globals.DevMode {
+		log.Warn("DEV MODE ENABLED")
+	}
 	return globals
 }
 
@@ -69,7 +77,6 @@ func (g *Globals) openDatabases() {
 	log.Debug("globals.openDatabases START")
 	bdb, err := bolt.Open(g.Config.DBFilename, 0600, &bolt.Options{Timeout: 10 * time.Second})
 	if err != nil {
-		log.Error("config.g open db error", "err", err)
 		panic("config.g open  db error " + err.Error())
 	}
 

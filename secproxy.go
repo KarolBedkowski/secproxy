@@ -24,14 +24,10 @@ func main() {
 	log.Info("Starting secproxy... ", "ver", config.AppVersion)
 	log.Info("Copyright (c) Karol Będkowski, 2015")
 
-	logFilenameF := flag.String("log", "./secproxy.log", "Log file name")
-	debugF := flag.Int("debug", 0, "Run in normal mode (0), debug mode (1) or verbose mode (2)")
-	configFilename := flag.String("config", "./config.toml", "Configuration file name")
-
 	flag.Parse()
 
-	logging.Init(*logFilenameF, *debugF)
-	globals := config.NewGlobals(*configFilename)
+	logging.Init()
+	globals := config.NewGlobals()
 
 	defer func() {
 		if e := recover(); e != nil {

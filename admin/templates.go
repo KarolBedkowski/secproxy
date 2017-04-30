@@ -3,7 +3,6 @@ package admin
 import (
 	"html/template"
 	"io/ioutil"
-	"k.prv/secproxy/logging"
 	res "k.prv/secproxy/resources"
 	"net/http"
 	"os"
@@ -32,12 +31,12 @@ func FormatDate(date time.Time, format string) string {
 // MainTemplateName contains name of main section in template (main template)
 const MainTemplateName = "base"
 
-func getTemplate(name string, debug bool, filenames ...string) (tmpl *template.Template) {
+func getTemplate(name string, nocache bool, filenames ...string) (tmpl *template.Template) {
 	cacheLock.Lock()
 	defer cacheLock.Unlock()
 
 	ctemplate, ok := cacheItems[name]
-	if !ok || debug {
+	if !ok || nocache {
 		ctemplate = template.New(name).Funcs(funcMap)
 		for _, name := range filenames {
 			if f, err := res.Assets.Open("templates/" + name); err == nil {
@@ -64,7 +63,7 @@ func getTemplate(name string, debug bool, filenames ...string) (tmpl *template.T
 
 // RenderTemplate - render given templates.
 func RenderTemplate(w http.ResponseWriter, ctx PageContextInterface, name string, filenames ...string) {
-	ctemplate := getTemplate(name, logging.DebugLevel() > 0, filenames...)
+	ctemplate := getTemplate(name, ctx.GetGlobals().DevMode, filenames...)
 	if ctemplate == nil {
 		return
 	}

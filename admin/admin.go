@@ -17,16 +17,12 @@ var (
 )
 
 func StartAdmin(globals *config.Globals) {
-
-	debug := logging.DebugLevel() > 0
-
 	InitSessionStore(globals.Config)
 	appRouter.HandleFunc("/", SecurityContextHandler(mainPageHandler, globals, ""))
 
 	appRouter.HandleFunc("/login", ContextHandler(loginPageHandler, globals)).Name("auth-login")
 	appRouter.HandleFunc("/logout", logoffHandler)
 	appRouter.HandleFunc("/chpass", SecurityContextHandler(chpassPageHandler, globals, ""))
-
 	appRouter.HandleFunc("/logs", SecurityContextHandler(logsPageHandler, globals, "ADMIN"))
 
 	InitUsersHandlers(globals, appRouter.PathPrefix("/users"))
@@ -35,9 +31,15 @@ func StartAdmin(globals *config.Globals) {
 	InitStatsHandlers(globals, appRouter.PathPrefix("/stats"))
 	InitSettingsHandlers(globals, appRouter.PathPrefix("/settings"))
 
-	http.Handle("/static/", prometheus.InstrumentHandler("static", http.StripPrefix("/static",
-		FileServer(http.Dir(globals.Config.AdminPanel.StaticDir), debug))))
-	http.Handle("/favicon.ico", FileServer(http.Dir(globals.Config.AdminPanel.StaticDir), debug))
+	http.Handle("/static/", prometheus.InstrumentHandler(
+		"static",
+		http.StripPrefix(
+			"/static",
+			FileServer(http.Dir(globals.Config.AdminPanel.StaticDir),
+				globals.DevMode))))
+	http.Handle("/favicon.ico",
+		FileServer(http.Dir(globals.Config.AdminPanel.StaticDir),
+			globals.DevMode))
 
 	http.Handle("/", prometheus.InstrumentHandlerFunc("appRouter",
 		common.LogHandler(

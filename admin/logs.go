@@ -13,8 +13,11 @@ func logsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 	}{
 		BasePageContext: bctx,
 	}
+	logFile := logging.LogFilename()
 
-	if content, err := ioutil.ReadFile(logging.LogFilename()); err == nil {
+	if logFile == "" {
+		ctx.Log = "Loading to file disabled"
+	} else if content, err := ioutil.ReadFile(logFile); err == nil {
 		ctx.Log = string(content)
 	} else {
 		ctx.Log = "Loading log file error: " + err.Error()

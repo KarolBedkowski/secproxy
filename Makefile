@@ -21,7 +21,7 @@ clean:
 run:
 	# mkdir temp || true
 	git checkout resources/resources.go
-	go-reload secproxy.go -debug=1
+	go-reload secproxy.go -log.level=debug -devMode=true
 
 certs:
 	mkdir -p certs
