@@ -3,13 +3,12 @@ package config
 import (
 	"bytes"
 	"encoding/gob"
-	"github.com/camlistore/lock"
-	"github.com/cznic/kv"
-	"io"
-	"k.prv/secproxy/common"
+	"fmt"
+	"github.com/boltdb/bolt"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 type (
@@ -17,15 +16,15 @@ type (
 		Config       *AppConfiguration
 		confFilename string
 
-		db *kv.DB
+		db *bolt.DB
 
 		mu sync.RWMutex
 	}
 )
 
 var (
-	userPrefix     = []byte("U_")
-	endpointPrefix = []byte("E_")
+	usersBucket     = []byte("users")
+	endpointsBucket = []byte("endpoints")
 )
 
 func NewGlobals(confFilename string) *Globals {
@@ -68,26 +67,29 @@ func (g *Globals) ReloadConfig() {
 
 func (g *Globals) openDatabases() {
 	log.Debug("globals.openDatabases START")
-	dbOpts := &kv.Options{
-		VerifyDbBeforeOpen:  true,
-		VerifyDbAfterOpen:   true,
-		VerifyDbBeforeClose: true,
-		VerifyDbAfterClose:  true,
-		Locker: func(name string) (io.Closer, error) {
-			return lock.Lock(name + ".lock")
-		},
-	}
-
-	var err error
-	if common.FileExists(g.Config.DBFilename) {
-		g.db, err = kv.Open(g.Config.DBFilename, dbOpts)
-	} else {
-		g.db, err = kv.Create(g.Config.DBFilename, dbOpts)
-	}
+	bdb, err := bolt.Open(g.Config.DBFilename, 0600, &bolt.Options{Timeout: 10 * time.Second})
 	if err != nil {
 		log.Error("config.g open db error", "err", err)
 		panic("config.g open  db error " + err.Error())
 	}
+
+	err = bdb.Update(func(tx *bolt.Tx) error {
+		if _, err := tx.CreateBucketIfNotExists(usersBucket); err != nil {
+			return fmt.Errorf("db create bucket error: %s", err.Error())
+		}
+		if _, err := tx.CreateBucketIfNotExists(endpointsBucket); err != nil {
+			return fmt.Errorf("db create bucket error: %s", err.Error())
+		}
+		return nil
+	})
+
+	if err != nil {
+		bdb.Close()
+		panic("open create buckets error: " + err.Error())
+	}
+
+	g.db = bdb
+
 	if u := g.GetUser("admin"); u == nil {
 		log.Info("config.g openDatabases creating 'admin' user with password 'admin'")
 		admin := &User{
@@ -112,7 +114,12 @@ func (g *Globals) openDatabases() {
 }
 
 func (g *Globals) GetUser(login string) (u *User) {
-	v, err := g.db.Get(nil, login2key(login))
+	var v []byte
+	err := g.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(usersBucket)
+		v = b.Get(login2key(login))
+		return nil
+	})
 	if err != nil {
 		log.Warn("globals.GetUser error", "err", err)
 	}
@@ -124,7 +131,7 @@ func (g *Globals) GetUser(login string) (u *User) {
 }
 
 func login2key(login string) []byte {
-	return append(userPrefix, []byte(login)...)
+	return []byte(login)
 }
 
 func decodeUser(buff []byte) (u *User) {
@@ -146,32 +153,31 @@ func (g *Globals) SaveUser(u *User) {
 		log.Warn("globals.SaveUser encode error", "err", err, "user", u)
 		return
 	}
-	if err := g.db.Set(login2key(u.Login), r.Bytes()); err != nil {
+	err := g.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(usersBucket)
+		return b.Put(login2key(u.Login), r.Bytes())
+	})
+	if err != nil {
 		log.Warn("globals.SaveUser set error", "err", err, "user", u)
 	}
 }
 
 func (g *Globals) GetUsers() (users []*User) {
-	en, _, err := g.db.Seek(userPrefix)
+	err := g.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(usersBucket)
+		return b.ForEach(func(k, v []byte) error {
+			users = append(users, decodeUser(v))
+			return nil
+		})
+	})
 	if err != nil {
-		return
-	}
-	for {
-		key, value, err := en.Next()
-		if err == io.EOF || !bytes.HasPrefix(key, userPrefix) {
-			break
-		}
-		if err == nil {
-			users = append(users, decodeUser(value))
-		} else {
-			log.Error("GetUsers next error", "err", err)
-		}
+		log.Error("GetUsers error", "err", err)
 	}
 	return
 }
 
 func endpoint2key(name string) []byte {
-	return append(endpointPrefix, []byte(name)...)
+	return []byte(name)
 }
 
 func decodeEndpoint(buff []byte) (ec *EndpointConf) {
@@ -186,7 +192,12 @@ func decodeEndpoint(buff []byte) (ec *EndpointConf) {
 }
 
 func (g *Globals) GetEndpoint(name string) (e *EndpointConf) {
-	v, err := g.db.Get(nil, endpoint2key(name))
+	var v []byte
+	err := g.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(endpointsBucket)
+		v = b.Get(endpoint2key(name))
+		return nil
+	})
 	if err != nil {
 		log.Warn("globals.GetEndpoint error", "err", err)
 	}
@@ -205,31 +216,33 @@ func (g *Globals) SaveEndpoint(e *EndpointConf) {
 		log.Warn("globals.SaveEndpoint encode error", "err", err, "endpointcfg", e)
 		return
 	}
-	if err := g.db.Set(endpoint2key(e.Name), r.Bytes()); err != nil {
+	err := g.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(endpointsBucket)
+		return b.Put(endpoint2key(e.Name), r.Bytes())
+	})
+	if err != nil {
 		log.Warn("globals.SaveEndpoint set error", "err", err, "endpointcfg", e)
 	}
 }
 
 func (g *Globals) DeleteEndpoint(name string) (ok bool) {
-	g.db.Delete(endpoint2key(name))
-	return true
+	err := g.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(endpointsBucket)
+		return b.Delete(endpoint2key(name))
+	})
+	return err == nil
 }
 
 func (g *Globals) GetEndpoints() (eps []*EndpointConf) {
-	en, _, err := g.db.Seek(endpointPrefix)
+	err := g.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(endpointsBucket)
+		return b.ForEach(func(k, v []byte) error {
+			eps = append(eps, decodeEndpoint(v))
+			return nil
+		})
+	})
 	if err != nil {
-		return
-	}
-	for {
-		key, value, err := en.Next()
-		if err == io.EOF || !bytes.HasPrefix(key, endpointPrefix) {
-			break
-		}
-		if err == nil {
-			eps = append(eps, decodeEndpoint(value))
-		} else {
-			log.Error("GetUsers next error", "err", err)
-		}
+		log.Error("GetUsers next error", "err", err)
 	}
 	return
 }
