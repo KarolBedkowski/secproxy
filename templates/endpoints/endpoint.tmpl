@@ -82,7 +82,7 @@
 							<div class="uk-form-controls">
 								<select name="SslKey" class="uk-form-select uk-width-1-1" data-uk-form-select>
 									<option value=""></option>
-									{{ range $c := .Certs }}
+									{{ range $c := .Keys }}
 									<option value="{{ $c }}" {{ if eq $c $form.SslKey }}selected{{ end }} >{{ $c }}</option>
 									{{ end }}
 								</select>

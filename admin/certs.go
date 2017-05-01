@@ -28,8 +28,9 @@ func certsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 		Certs []string
 	}{
 		bctx,
-		bctx.Globals.FindCerts(),
+		append(bctx.Globals.FindCerts(), bctx.Globals.FindKeys()...),
 	}
+
 	RenderTemplateStd(w, ctx, "certs.tmpl")
 }
 

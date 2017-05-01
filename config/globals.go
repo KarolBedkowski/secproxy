@@ -11,6 +11,7 @@ import (
 	"k.prv/secproxy/logging"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -303,7 +304,24 @@ func (g *Globals) FindCerts() (names []string) {
 					Error("Globals: find certs error")
 				return err
 			}
-			if !info.IsDir() {
+			if !info.IsDir() && strings.HasSuffix(path, ".crt") {
+				names = append(names, path)
+			}
+			return nil
+		})
+	return
+}
+
+func (g *Globals) FindKeys() (names []string) {
+	filepath.Walk(g.Config.CertsDir,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				logGlobals.With("err", err).
+					With("path", g.Config.CertsDir).
+					Error("Globals: find certs error")
+				return err
+			}
+			if !info.IsDir() && strings.HasSuffix(path, ".pem") {
 				names = append(names, path)
 			}
 			return nil

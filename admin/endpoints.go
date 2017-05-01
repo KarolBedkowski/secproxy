@@ -86,10 +86,12 @@ func endpointPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 		Form     endpointForm
 		AllUsers []*config.User
 		Certs    []string
+		Keys     []string
 	}{
 		BasePageContext: bctx,
 		AllUsers:        bctx.Globals.GetUsers(),
 		Certs:           bctx.Globals.FindCerts(),
+		Keys:            bctx.Globals.FindKeys(),
 	}
 
 	log := logEP.WithRequest(r).With("user", bctx.UserLogin())
