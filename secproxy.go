@@ -43,6 +43,18 @@ func main() {
 		os.Exit(0)
 	}()
 
+	// handle hup for reloading configuration
+	hup := make(chan os.Signal)
+	signal.Notify(hup, syscall.SIGHUP)
+	go func() {
+		for {
+			select {
+			case <-hup:
+				globals.ReloadConfig()
+			}
+		}
+	}()
+
 	log.Info("Setting maxprocs; numcpu=%d", runtime.NumCPU())
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
