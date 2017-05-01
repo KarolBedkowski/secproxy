@@ -2,8 +2,11 @@ package proxy
 
 import (
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"expvar"
 	"github.com/prometheus/client_golang/prometheus"
+	"io/ioutil"
 	"k.prv/secproxy/common"
 	"k.prv/secproxy/config"
 	"k.prv/secproxy/logging"
@@ -163,42 +166,68 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 			ReadTimeout:  10 * time.Second,
 			WriteTimeout: 10 * time.Second,
 		}
-		config := &tls.Config{}
-		if config.NextProtos == nil {
-			config.NextProtos = []string{"http/1.1"}
+		tlsConfig := &tls.Config{
+			RootCAs:                  globals.TLSRootsCAs,
+			ClientCAs:                globals.TLSRootsCAs,
+			PreferServerCipherSuites: true,
+		}
+		if tlsConfig.NextProtos == nil {
+			tlsConfig.NextProtos = []string{"http/1.1"}
 		}
 
-		var err error
-		config.Certificates = make([]tls.Certificate, 1)
-		config.Certificates[0], err = tls.LoadX509KeyPair(conf.SslCert, conf.SslKey)
-		if err != nil {
+		if cert, err := tls.LoadX509KeyPair(conf.SslCert, conf.SslKey); err != nil {
 			llog.With("err", err).Info("Proxy: starting HTTPS cert error")
 			errstr = append(errstr, "starting https - cert error "+err.Error())
 			errors.Set(name+"|ssl", varState(err.Error()))
 		} else {
-			ln, err := net.Listen("tcp", conf.HTTPSAddress)
-			if err != nil {
-				llog.With("err", err).
-					Error("Proxy: start HTTPS listen error")
-				errstr = append(errstr, "starting https error "+err.Error())
-				errors.Set(name+"|ssl", varState(err.Error()))
-			} else {
-				tlsListener := tls.NewListener(ln, config)
-				go func() {
-					st.runningSSL = true
-					go s.Serve(tlsListener)
-					servStat.Set(name+"|ssl", varState("running"))
-					errors.Set(name+"|ssl", varState(""))
-					select {
-					case <-st.serverSSLClose:
-						llog.Info("Proxy: stopping HTTPS")
-						ln.Close()
-						st.runningSSL = false
-						servStat.Set(name, varState("stopped"))
-						return
-					}
-				}()
+			tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
+		}
+
+		if len(conf.ClientCertificates) > 0 {
+			for _, certName := range conf.ClientCertificates {
+				clog := llog.With("certname", certName)
+				certPEM, err := ioutil.ReadFile(certName)
+				if err != nil {
+					clog.With("err", err).Info("Proxy: load cert error")
+					continue
+				}
+				block, _ := pem.Decode([]byte(certPEM))
+				if block == nil {
+					clog.Info("Proxy: decode cert error")
+					continue
+				}
+				cert, err := x509.ParseCertificate(block.Bytes)
+				if err != nil {
+					clog.With("err", err).Info("Proxy: decode cert error")
+					continue
+				}
+				tlsConfig.Certificates = append(tlsConfig.Certificates, tls.Certificate{Leaf: cert})
+				clog.Debug("loaded cert: cn=%s ", cert.Subject.CommonName)
 			}
+			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+		}
+
+		if ln, err := net.Listen("tcp", conf.HTTPSAddress); err != nil {
+			llog.With("err", err).
+				Error("Proxy: start HTTPS listen error")
+			errstr = append(errstr, "starting https error "+err.Error())
+			errors.Set(name+"|ssl", varState(err.Error()))
+		} else {
+			tlsListener := tls.NewListener(ln, tlsConfig)
+			go func() {
+				st.runningSSL = true
+				go s.Serve(tlsListener)
+				servStat.Set(name+"|ssl", varState("running"))
+				errors.Set(name+"|ssl", varState(""))
+				select {
+				case <-st.serverSSLClose:
+					llog.Info("Proxy: stopping HTTPS")
+					ln.Close()
+					st.runningSSL = false
+					servStat.Set(name, varState("stopped"))
+					return
+				}
+			}()
 		}
 	}
 

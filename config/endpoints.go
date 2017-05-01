@@ -15,7 +15,8 @@ type (
 		Destination  string
 		Autostart    bool
 
-		Users []string
+		Users              []string
+		ClientCertificates []string
 
 		// AcceptAddr containst list of ip/networks separated by new line
 		AcceptAddr string
@@ -66,7 +67,9 @@ func (e *EndpointConf) Clone() (ne *EndpointConf) {
 		Destination:  e.Destination,
 		Autostart:    e.Autostart,
 
-		Users:      e.Users,
+		Users:              e.Users,
+		ClientCertificates: e.ClientCertificates,
+
 		AcceptAddr: e.AcceptAddr,
 	}
 }

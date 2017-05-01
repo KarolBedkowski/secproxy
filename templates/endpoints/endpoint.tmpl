@@ -7,6 +7,7 @@
 			<ul class="uk-tab" data-uk-tab="{connect:'#tab-content'}">
 				<li class="uk-active"><a href="#">Main</a></li>
 				<li><a href="#">Users</a></li>
+				<li><a href="#">Certificates</a></li>
 				<li><a href="#">Networks</a></li>
 			</ul>
 			<ul id="tab-content" class="uk-switcher uk-margin">
@@ -30,7 +31,7 @@
 						<div class="uk-form-row {{ if $destError }} uk-form-danger {{ end }}">
 							<label class="uk-form-label">Destination</label>
 							<div class="uk-form-controls">
-								<input type="url" name="Destination" value="{{ .Form.Destination }}" required class="uk-width-1-1">
+								<input type="text" name="Destination" value="{{ .Form.Destination }}" required class="uk-width-1-1">
 								{{ with $destError }}<label class="error">{{ . }}</label>{{ end }}
 							</div>
 						</div>
@@ -114,6 +115,26 @@
 				</li>
 				<li>
 					<fieldset data-uk-margin>
+						<legend>Client Certificates</legend>
+						{{ $form := .Form }}
+						{{ range .Certs }}
+						<p>
+						<label>
+							<input type="checkbox" name="ClientCertificates" value="{{ . }}"
+									{{ if $form.HasCCert . }} checked {{ end }}
+									  class="cb-clientcerts" />
+							{{ . }}
+						</label>
+						</p>
+						{{ end }}
+						<hr/>
+						<label>
+							<input type="checkbox" id="client-certs-select-all"> Check/Uncheck all
+						</label>
+					</fieldset>
+				</li>
+				<li>
+					<fieldset data-uk-margin>
 						<legend>Acceptable networks</legend>
 						<label>List of IP or IP/mask (separated by space/new line)</label>
 						<textarea name="AcceptAddr" class="uk-width-1-1">{{ .Form.AcceptAddr }}</textarea>
@@ -141,7 +162,7 @@
 {{ define "scripts" }}
 <script type="text/javascript">
 $(function() {
-	$.validator.addMethod( "alphanumeric", function( value, element ) {
+	$.validator.addMethod("alphanumeric", function( value, element ) {
 		return this.optional( element ) || /^\w+$/i.test( value );
 	}, "Letters, numbers, and underscores only please" );
 
@@ -175,6 +196,9 @@ $(function() {
 	});
 	$('#users-select-all').change(function () {
 		$('.cb-user').prop('checked', $(this).is(':checked'));
+	});
+	$('#client-certs-select-all').change(function () {
+		$('.cb-clientcerts').prop('checked', $(this).is(':checked'));
 	});
 
 	function setSelectAllUsers() {

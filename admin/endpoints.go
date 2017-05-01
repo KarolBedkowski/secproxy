@@ -70,6 +70,15 @@ func (f *endpointForm) HasUser(name string) bool {
 	return false
 }
 
+func (f *endpointForm) HasCCert(name string) bool {
+	for _, u := range f.ClientCertificates {
+		if u == name {
+			return true
+		}
+	}
+	return false
+}
+
 func endpointPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
 	vars := mux.Vars(r)
 	ctx := &struct {
