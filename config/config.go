@@ -30,6 +30,7 @@ type (
 	AppConfiguration struct {
 		DBFilename string
 		CertsDir   string
+		CARootsDir string
 
 		AdminPanel AdminPanelConf
 	}
@@ -54,8 +55,15 @@ func LoadConfiguration(filename string) (conf *AppConfiguration, err error) {
 
 	if !common.DirExists(conf.CertsDir) {
 		llog.Info("Config: dir for certs not exists - creating %s", conf.CertsDir)
-		if err := os.MkdirAll(conf.CertsDir, 600); err != nil {
+		if err := os.MkdirAll(conf.CertsDir, 0700); err != nil {
 			llog.With("err", err).Panic("Config: creating dir %s for certs failed", conf.CertsDir)
+		}
+	}
+
+	if !common.DirExists(conf.CARootsDir) {
+		llog.Info("Config: dir for CA certs not exists - creating %s", conf.CARootsDir)
+		if err := os.MkdirAll(conf.CARootsDir, 0700); err != nil {
+			llog.With("err", err).Panic("Config: creating dir %s for CA certs failed", conf.CARootsDir)
 		}
 	}
 
@@ -89,6 +97,7 @@ func (ac *AppConfiguration) loadDefaults() {
 	ac.AdminPanel.SslCert = "key.pem"
 	ac.AdminPanel.SslKey = "cert.pem"
 	ac.CertsDir = "./certs"
+	ac.CARootsDir = "./certs-ca"
 }
 
 func (ac *AppConfiguration) validate() bool {

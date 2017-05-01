@@ -2,10 +2,12 @@ package config
 
 import (
 	"bytes"
+	"crypto/x509"
 	"encoding/gob"
 	"flag"
 	"fmt"
 	"github.com/boltdb/bolt"
+	"io/ioutil"
 	"k.prv/secproxy/logging"
 	"os"
 	"path/filepath"
@@ -21,6 +23,8 @@ type (
 		confFilename string
 		db           *bolt.DB
 		mu           sync.RWMutex
+
+		TLSRootsCAs *x509.CertPool
 	}
 )
 
@@ -38,6 +42,7 @@ func NewGlobals() *Globals {
 	globals := &Globals{
 		confFilename: *configFilenameFlag,
 		DevMode:      *devModeFlag,
+		TLSRootsCAs:  x509.NewCertPool(),
 	}
 	globals.ReloadConfig()
 	if globals.DevMode {
@@ -74,6 +79,7 @@ func (g *Globals) ReloadConfig() {
 	}
 
 	g.openDatabases()
+	g.loadRootCAs()
 	llog.Info("Globals: configuration reloaded")
 }
 
@@ -312,4 +318,31 @@ func (g *Globals) CertUsed(name string) (epname string, used bool) {
 		}
 	}
 	return "", false
+}
+
+func (g *Globals) loadRootCAs() {
+	logGlobals.Debug("Globals: loading root CAs")
+	filepath.Walk(g.Config.CARootsDir,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				logGlobals.With("err", err).
+					With("path", g.Config.CertsDir).
+					Error("Globals: find CA certs error")
+				return err
+			}
+			if !info.IsDir() {
+				if data, err := ioutil.ReadFile(path); err == nil {
+					if g.TLSRootsCAs.AppendCertsFromPEM(data) {
+						logGlobals.Debug("Globals: loaded root ca: %s", path)
+					} else {
+						logGlobals.Warn("Globals: failed append root ca: %s", path)
+					}
+				} else {
+					logGlobals.With("err", err).
+						Warn("Globals: failed load root ca file: %s", path)
+				}
+			}
+			return nil
+		})
+	logGlobals.Debug("Globals: loaded %d root CAs", len(g.TLSRootsCAs.Subjects()))
 }

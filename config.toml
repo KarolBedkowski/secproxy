@@ -10,6 +10,6 @@ CertsDir = "./certs"
 	SessionStoreDir = "./temp"
 	HTTPAddress = ":8000"
 	HTTPSAddress = ":8443"
-	SslCert = "./certs/cert.pem"
-	SslKey = "./certs/key.pem"
+	SslCert = "./certs/127.0.0.1-server.crt"
+	SslKey = "./certs/127.0.0.1-server.pem"
 
