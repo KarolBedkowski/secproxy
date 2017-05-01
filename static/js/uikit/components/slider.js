@@ -1,4 +1,4 @@
-/*! UIkit 2.22.0 | http://www.getuikit.com | (c) 2014 YOOtheme | MIT License */
+/*! UIkit 2.27.2 | http://www.getuikit.com | (c) 2014 YOOtheme | MIT License */
 (function(addon) {
 
     var component;
@@ -7,8 +7,8 @@
         component = addon(UIkit);
     }
 
-    if (typeof define == "function" && define.amd) {
-        define("uikit-slider", ["uikit"], function(){
+    if (typeof define == 'function' && define.amd) {
+        define('uikit-slider', ['uikit'], function(){
             return component || addon(UIkit);
         });
     }
@@ -38,11 +38,11 @@
 
                 setTimeout(function(){
 
-                    UI.$("[data-uk-slider]", context).each(function(){
+                    UI.$('[data-uk-slider]', context).each(function(){
 
                         var ele = UI.$(this);
 
-                        if (!ele.data("slider")) {
+                        if (!ele.data('slider')) {
                             UI.slider(ele, UI.Utils.options(ele.attr('data-uk-slider')));
                         }
                     });
@@ -58,11 +58,11 @@
             this.container = this.element.find('.uk-slider');
             this.focus     = 0;
 
-            UI.$win.on("resize load", UI.Utils.debounce(function() {
-                $this.resize(true);
+            UI.$win.on('resize load', UI.Utils.debounce(function() {
+                $this.update(true);
             }, 100));
 
-            this.on("click.uikit.slider", '[data-uk-slider-item]', function(e) {
+            this.on('click.uk.slider', '[data-uk-slider-item]', function(e) {
 
                 e.preventDefault();
 
@@ -84,6 +84,7 @@
             });
 
             this.container.on({
+
                 'touchstart mousedown': function(evt) {
 
                     if (evt.originalEvent && evt.originalEvent.touches) {
@@ -137,15 +138,16 @@
                     delayIdle.threshold = $this.options.threshold;
 
                 },
+
                 mouseenter: function() { if ($this.options.pauseOnHover) $this.hovering = true;  },
                 mouseleave: function() { $this.hovering = false; }
             });
 
-            this.resize(true);
+            this.update(true);
 
             this.on('display.uk.check', function(){
                 if ($this.element.is(":visible")) {
-                    $this.resize(true);
+                    $this.update(true);
                 }
             });
 
@@ -157,9 +159,15 @@
                 this.start();
             }
 
+            UI.domObserve(this.element, function(e) {
+                if ($this.element.children(':not([data-slider-slide])').length) {
+                    $this.update(true);
+                }
+            });
+
         },
 
-        resize: function(focus) {
+        update: function(focus) {
 
             var $this = this, pos = 0, maxheight = 0, item, width, cwidth, size;
 
@@ -170,7 +178,7 @@
 
             this.items.each(function(idx){
 
-                item      = UI.$(this);
+                item      = UI.$(this).attr('data-slider-slide', idx);
                 size      = item.css({'left': '', 'width':''})[0].getBoundingClientRect();
                 width     = size.width;
                 cwidth    = item.width();
@@ -183,7 +191,7 @@
 
             this.container.css({'min-width': pos, 'min-height': maxheight});
 
-            if (this.options.infinite && pos <= (2*this.vp) && !this.itemsResized) {
+            if (this.options.infinite && (pos <= (2*this.vp) || this.items.length < 5) && !this.itemsResized) {
 
                 // fill with cloned items
                 this.container.children().each(function(idx){
@@ -194,7 +202,7 @@
 
                 this.itemsResized = true;
 
-                return this.resize();
+                return this.update();
             }
 
             this.cw     = pos;
@@ -269,17 +277,35 @@
 
                                 area += this.items.eq(i).data('width');
 
-                                if (area >= this.vp) {
+                                if (area == this.vp) {
                                     idx = i;
+                                    break;
+                                }
+
+                                if (area > this.vp) {
+                                    idx = (i < this.items.length-1) ? i+1 : i;
                                     break;
                                 }
                             }
 
-                            this.updatePos(this.items.eq(idx).data('left')*-1);
+                            if (area > this.vp) {
+                                this.updatePos((this.container.width() - this.vp) * -1);
+                            } else {
+                                this.updatePos(this.items.eq(idx).data('left')*-1);
+                            }
                         }
                     }
                 }
             }
+
+            // mark elements
+            var left = this.items.eq(idx).data('left');
+
+            this.items.removeClass('uk-slide-before uk-slide-after').each(function(i){
+                if (i!==idx) {
+                    UI.$(this).addClass(UI.$(this).data('left') < left ? 'uk-slide-before':'uk-slide-after');
+                }
+            });
 
             this.focus = idx;
 
@@ -344,9 +370,9 @@
                         var left = item.data('area');
 
                         itm.css({'left': left}).data({
-                            'left'  : left,
-                            'area'  : (left+itm.data('width')),
-                            'center': (left - ($this.vp/2 - itm.data('cwidth')/2))
+                            left  : left,
+                            area  : (left+itm.data('width')),
+                            center: (left - ($this.vp/2 - itm.data('cwidth')/2))
                         });
 
                         item = itm;
@@ -378,9 +404,9 @@
                         var left = item.data('left') - itm.data('width');
 
                         itm.css({'left': left}).data({
-                            'left'  : left,
-                            'area'  : (left+itm.data('width')),
-                            'center': (left - ($this.vp/2 - itm.data('cwidth')/2))
+                            left  : left,
+                            area  : (left+itm.data('width')),
+                            center: (left - ($this.vp/2 - itm.data('cwidth')/2))
                         });
 
                         item = itm;
@@ -391,7 +417,7 @@
     });
 
     // handle dragging
-    UI.$doc.on('mousemove.uikit.slider touchmove.uikit.slider', function(e) {
+    UI.$doc.on('mousemove.uk.slider touchmove.uk.slider', function(e) {
 
         if (e.originalEvent && e.originalEvent.touches) {
             e = e.originalEvent.touches[0];
@@ -469,7 +495,7 @@
         store.diff    = diff;
     });
 
-    UI.$doc.on('mouseup.uikit.slider touchend.uikit.slider', function(e) {
+    UI.$doc.on('mouseup.uk.slider touchend.uk.slider', function(e) {
 
         if (dragging) {
 
@@ -493,37 +519,8 @@
 
                     z = z+1 == dragging.items.length ? 0:z+1;
                 }
-
-            } else {
-
-                for (i=0,z=store.focus;i<dragging.items.length;i++) {
-
-                    itm = dragging.items.eq(z);
-
-                    if (z != store.focus && itm.data('left') < store.diff) {
-                        focus = z;
-                        break;
-                    }
-
-                    z = z-1 == -1 ? dragging.items.length-1:z-1;
-                }
-            }
-
-            dragging.updateFocus(focus!==false ? focus:store._focus);
-
-        }
-
-        dragging = delayIdle = false;
-    });
-
-    return UI.slider;
-});
-z != store.focus && itm.data('left') > store.diff) {
-                        focus = z;
-                        break;
-                    }
-
-                    z = z+1 == dragging.items.length ? 0:z+1;
+                if (!dragging.options.infinite && !focus) {
+                    focus = dragging.items.length;
                 }
 
             } else {
@@ -538,6 +535,9 @@ z != store.focus && itm.data('left') > store.diff) {
                     }
 
                     z = z-1 == -1 ? dragging.items.length-1:z-1;
+                }
+                if (!dragging.options.infinite && !focus) {
+                    focus = 0
                 }
             }
 

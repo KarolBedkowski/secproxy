@@ -1,4 +1,4 @@
-/*! UIkit 2.22.0 | http://www.getuikit.com | (c) 2014 YOOtheme | MIT License */
+/*! UIkit 2.27.2 | http://www.getuikit.com | (c) 2014 YOOtheme | MIT License */
 (function(addon) {
 
     var component;
@@ -7,8 +7,8 @@
         component = addon(UIkit);
     }
 
-    if (typeof define == "function" && define.amd) {
-        define("uikit-parallax", ["uikit"], function(){
+    if (typeof define == 'function' && define.amd) {
+        define('uikit-parallax', ['uikit'], function(){
             return component || addon(UIkit);
         });
     }
@@ -25,11 +25,11 @@
 
             scrolltop = UI.$win.scrollTop();
 
-            window.requestAnimationFrame.apply(window, [function(){
+            window.requestAnimationFrame(function(){
                 for (var i=0; i < parallaxes.length; i++) {
                     parallaxes[i].process();
                 }
-            }]);
+            });
         };
 
 
@@ -60,7 +60,7 @@
 
                 for (var t in transforms) {
                     if (el.style[t] !== undefined) {
-                        el.style[t] = "translate3d(1px,1px,1px)";
+                        el.style[t] = 'translate3d(1px,1px,1px)';
                         has3d = window.getComputedStyle(el).getPropertyValue(transforms[t]);
                     }
                 }
@@ -71,8 +71,8 @@
             })();
 
             // listen to scroll and resize
-            UI.$doc.on("scrolling.uk.document", checkParallaxes);
-            UI.$win.on("load resize orientationchange", UI.Utils.debounce(function(){
+            UI.$doc.on('scrolling.uk.document', checkParallaxes);
+            UI.$win.on('load resize orientationchange', UI.Utils.debounce(function(){
                 wh = window.innerHeight;
                 checkParallaxes();
             }, 50));
@@ -84,8 +84,8 @@
 
                     var parallax = UI.$(this);
 
-                    if (!parallax.data("parallax")) {
-                        UI.parallax(parallax, UI.Utils.options(parallax.attr("data-uk-parallax")));
+                    if (!parallax.data('parallax')) {
+                        UI.parallax(parallax, UI.Utils.options(parallax.attr('data-uk-parallax')));
                     }
                 });
             });
@@ -122,7 +122,7 @@
                     dir   = (start < end ? 1:-1);
                 }
 
-                this.props[prop] = { 'start': start, 'end': end, 'dir': dir, 'diff': diff };
+                this.props[prop] = { start: start, end: end, dir: dir, diff: diff };
 
             }.bind(this));
 
@@ -185,7 +185,8 @@
 
         update: function(percent) {
 
-            var css        = {'transform':''},
+            var $this      = this,
+                css        = {transform:'', filter:''},
                 compercent = percent * (1 - (this.velocity - (this.velocity * percent))),
                 opts, val;
 
@@ -215,38 +216,67 @@
                 switch(prop) {
 
                     // transforms
-                    case "x":
+                    case 'x':
                         css.transform += supports3d ? ' translate3d('+val+'px, 0, 0)':' translateX('+val+'px)';
                         break;
-                    case "xp":
+                    case 'xp':
                         css.transform += supports3d ? ' translate3d('+val+'%, 0, 0)':' translateX('+val+'%)';
                         break;
-                    case "y":
+                    case 'y':
                         css.transform += supports3d ? ' translate3d(0, '+val+'px, 0)':' translateY('+val+'px)';
                         break;
-                    case "yp":
+                    case 'yp':
                         css.transform += supports3d ? ' translate3d(0, '+val+'%, 0)':' translateY('+val+'%)';
                         break;
-                    case "rotate":
+                    case 'rotate':
                         css.transform += ' rotate('+val+'deg)';
                         break;
-                    case "scale":
+                    case 'scale':
                         css.transform += ' scale('+val+')';
                         break;
 
                     // bg image
-                    case "bg":
+                    case 'bg':
+
+                        // don't move if image height is too small
+                        // if ($this.element.data('bgsize') && ($this.element.data('bgsize').h + val - window.innerHeight) < 0) {
+                        //     break;
+                        // }
+
                         css['background-position'] = '50% '+val+'px';
                         break;
-                    case "bgp":
+                    case 'bgp':
                         css['background-position'] = '50% '+val+'%';
                         break;
 
                     // color
-                    case "color":
-                    case "background-color":
-                    case "border-color":
+                    case 'color':
+                    case 'background-color':
+                    case 'border-color':
                         css[prop] = calcColor(opts.start, opts.end, compercent);
+                        break;
+
+                    // CSS Filter
+                    case 'blur':
+                        css.filter += ' blur('+val+'px)';
+                        break;
+                    case 'hue':
+                        css.filter += ' hue-rotate('+val+'deg)';
+                        break;
+                    case 'grayscale':
+                        css.filter += ' grayscale('+val+'%)';
+                        break;
+                    case 'invert':
+                        css.filter += ' invert('+val+'%)';
+                        break;
+                    case 'fopacity':
+                        css.filter += ' opacity('+val+'%)';
+                        break;
+                    case 'saturate':
+                        css.filter += ' saturate('+val+'%)';
+                        break;
+                    case 'sepia':
+                        css.filter += ' sepia('+val+'%)';
                         break;
 
                     default:
@@ -255,6 +285,10 @@
                 }
 
             }.bind(this));
+
+            if (css.filter) {
+                css['-webkit-filter'] = css.filter;
+            }
 
             this.element.css(css);
 
@@ -285,27 +319,38 @@
 
         var img = new Image(), url, element, size, check, ratio, width, height;
 
-        element = obj.element.css({'background-size': 'cover',  'background-repeat': 'no-repeat'});
+        element = obj.element.css({backgroundSize: 'cover',  backgroundRepeat: 'no-repeat'});
         url     = element.css('background-image').replace(/^url\(/g, '').replace(/\)$/g, '').replace(/("|')/g, '');
         check   = function() {
 
-            var w = element.width(), h = element.height(), extra = (prop=='bg') ? opts.diff : (opts.diff/100) * h;
+            var w = element.innerWidth(), h = element.innerHeight(), extra = (prop=='bg') ? opts.diff : (opts.diff/100) * h;
 
             h += extra;
             w += Math.ceil(extra * ratio);
 
+            if (w-extra < size.w && h < size.h) {
+                return obj.element.css({backgroundSize: 'auto'});
+            }
+
             // if element height < parent height (gap underneath)
             if ((w / ratio) < h) {
+
                 width  = Math.ceil(h * ratio);
                 height = h;
 
+                if (h > window.innerHeight) {
+                    width  = width * 1.2;
+                    height = height * 1.2;
+                }
+
             // element width < parent width (gap to right)
             } else {
+
                 width  = w;
                 height = Math.ceil(w / ratio);
             }
 
-            obj.element.css({'background-size': (width+'px '+height+'px')});
+            element.css({backgroundSize: (width+'px '+height+'px')}).data('bgsize', {w:width,h:height});
         };
 
         img.onerror = function(){
@@ -313,10 +358,10 @@
         };
 
         img.onload = function(){
-            size  = {w:img.width, height:img.height};
+            size  = {w:img.width, h:img.height};
             ratio = img.width / img.height;
 
-            UI.$win.on("load resize orientationchange", UI.Utils.debounce(function(){
+            UI.$win.on('load resize orientationchange', UI.Utils.debounce(function(){
                 check();
             }, 50));
 
@@ -378,44 +423,6 @@
     function calculateColor(begin, end, pos) {
         var color = 'rgba('
                 + parseInt((begin[0] + pos * (end[0] - begin[0])), 10) + ','
-                + parseInt((begin[1] + pos * (end[1] - begin[1])), 10) + ','
-                + parseInt((begin[2] + pos * (end[2] - begin[2])), 10) + ','
-                + (begin && end ? parseFloat(begin[3] + pos * (end[3] - begin[3])) : 1);
-
-        color += ')';
-        return color;
-    }
-
-    // Parse an CSS-syntax color. Outputs an array [r, g, b]
-    function parseColor(color) {
-
-        var match, quadruplet;
-
-        // Match #aabbcc
-        if (match = /#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})/.exec(color)) {
-            quadruplet = [parseInt(match[1], 16), parseInt(match[2], 16), parseInt(match[3], 16), 1];
-
-            // Match #abc
-        } else if (match = /#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])/.exec(color)) {
-            quadruplet = [parseInt(match[1], 16) * 17, parseInt(match[2], 16) * 17, parseInt(match[3], 16) * 17, 1];
-
-            // Match rgb(n, n, n)
-        } else if (match = /rgb\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*\)/.exec(color)) {
-            quadruplet = [parseInt(match[1]), parseInt(match[2]), parseInt(match[3]), 1];
-
-        } else if (match = /rgba\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9\.]*)\s*\)/.exec(color)) {
-            quadruplet = [parseInt(match[1], 10), parseInt(match[2], 10), parseInt(match[3], 10),parseFloat(match[4])];
-
-            // No browser returns rgb(n%, n%, n%), so little reason to support this format.
-        } else {
-            quadruplet = colors[color] || [255,255,255,0];
-        }
-        return quadruplet;
-    }
-
-    return UI.parallax;
-});
-egin[0] + pos * (end[0] - begin[0])), 10) + ','
                 + parseInt((begin[1] + pos * (end[1] - begin[1])), 10) + ','
                 + parseInt((begin[2] + pos * (end[2] - begin[2])), 10) + ','
                 + (begin && end ? parseFloat(begin[3] + pos * (end[3] - begin[3])) : 1);

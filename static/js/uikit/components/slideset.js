@@ -1,4 +1,4 @@
-/*! UIkit 2.22.0 | http://www.getuikit.com | (c) 2014 YOOtheme | MIT License */
+/*! UIkit 2.27.2 | http://www.getuikit.com | (c) 2014 YOOtheme | MIT License */
 (function(addon) {
 
     var component;
@@ -7,8 +7,8 @@
         component = addon(UIkit);
     }
 
-    if (typeof define == "function" && define.amd) {
-        define("uikit-slideset", ["uikit"], function(){
+    if (typeof define == 'function' && define.amd) {
+        define('uikit-slideset', ['uikit'], function(){
             return component || addon(UIkit);
         });
     }
@@ -40,12 +40,12 @@
             // auto init
             UI.ready(function(context) {
 
-                UI.$("[data-uk-slideset]", context).each(function(){
+                UI.$('[data-uk-slideset]', context).each(function(){
 
                     var ele = UI.$(this);
 
-                    if(!ele.data("slideset")) {
-                        UI.slideset(ele, UI.Utils.options(ele.attr("data-uk-slideset")));
+                    if(!ele.data('slideset')) {
+                        UI.slideset(ele, UI.Utils.options(ele.attr('data-uk-slideset')));
                     }
                 });
             });
@@ -60,8 +60,8 @@
             this.nav       = this.element.find('.uk-slideset-nav');
             this.controls  = this.options.controls ? UI.$(this.options.controls) : this.element;
 
-            UI.$win.on("resize load", UI.Utils.debounce(function() {
-                $this.updateSets();
+            UI.$win.on('resize load', UI.Utils.debounce(function() {
+                $this.update();
             }, 100));
 
             $this.list.addClass('uk-grid-width-1-'+$this.options.default);
@@ -75,7 +75,7 @@
                 $this.list.addClass('uk-grid-width-'+bp+'-1-'+$this.options[bp]);
             });
 
-            this.on("click.uikit.slideset", '[data-uk-slideset-item]', function(e) {
+            this.on('click.uk.slideset', '[data-uk-slideset-item]', function(e) {
 
                 e.preventDefault();
 
@@ -98,7 +98,7 @@
 
             });
 
-            this.controls.on('click.uikit.slideset', '[data-uk-filter]', function(e) {
+            this.controls.on('click.uk.slideset', '[data-uk-filter]', function(e) {
 
                 var ele = UI.$(this);
 
@@ -116,7 +116,7 @@
 
                 $this._hide().then(function(){
 
-                    $this.updateSets(true, true);
+                    $this.update(true, true);
                 });
             });
 
@@ -125,7 +125,7 @@
             });
 
             this.updateFilter(this.options.filter);
-            this.updateSets();
+            this.update();
 
             this.element.on({
                 mouseenter: function() { if ($this.options.pauseOnHover) $this.hovering = true;  },
@@ -136,9 +136,15 @@
             if (this.options.autoplay) {
                 this.start();
             }
+
+            UI.domObserve(this.list, function(e) {
+                if ($this.list.children(':visible:not(.uk-active)').length) {
+                    $this.update(false,true);
+                }
+            });
         },
 
-        updateSets: function(animate, force) {
+        update: function(animate, force) {
 
             var visible = this.visible, i;
 
@@ -396,7 +402,7 @@
 
     function coreAnimation(cls, current, next, dir) {
 
-        var d = UI.$.Deferred(),
+        var d     = UI.$.Deferred(),
             delay = (this.options.delay === false) ? Math.floor(this.options.duration/2) : this.options.delay,
             $this = this, clsIn, clsOut, release, i;
 
@@ -417,6 +423,8 @@
             clsOut = clsIn;
         }
 
+        UI.$body.css('overflow-x', 'hidden'); // prevent horizontal scrollbar on animation
+
         release = function() {
 
             if (current && current.length) {
@@ -432,13 +440,22 @@
                 next.eq(dir == 1 ? i:(next.length - i)-1).css('animation-delay', (i*delay)+'ms');
             }
 
-            next.addClass(clsIn)[dir==1 ? 'last':'first']().one(UI.support.animation.end, function() {
-
+            var finish = function() {
                 next.removeClass(''+clsIn+'').css({opacity:'', display:'', 'animation-delay':'', 'animation':''});
                 d.resolve();
+                UI.$body.css('overflow-x', '');
                 $this.element.css('min-height', '');
+                finish = false;
+            };
 
+            next.addClass(clsIn)[dir==1 ? 'last':'first']().one(UI.support.animation.end, function(){
+                if(finish) finish();
             }).end().css('display', '');
+
+            // make sure everything resolves really
+            setTimeout(function() {
+                if(finish) finish();
+            },  next.length * delay * 2);
         };
 
         if (next.length) {
@@ -456,7 +473,11 @@
                 (function (index, ele){
 
                     setTimeout(function(){
-                        ele.css('display', 'none').css('display', '').css('opacity', 0).addClass(clsOut+' uk-animation-reverse');
+
+                        ele.css('display', 'none').css('display', '').css('opacity', 0).on(UI.support.animation.end, function(){
+                            ele.removeClass(clsOut);
+                        }).addClass(clsOut+' uk-animation-reverse');
+
                     }.bind(this), i * delay);
 
                 })(i, current.eq(dir == 1 ? i:(current.length - i)-1));
@@ -472,35 +493,6 @@
     function array_chunk(input, size) {
 
         var x, i = 0, c = -1, l = input.length || 0, n = [];
-
-        if (size < 1) return null;
-
-        while (i < l) {
-
-            x = i % size;
-
-            if(x) {
-                n[c][x] = input[i];
-            } else {
-                n[++c] = [input[i]];
-            }
-
-            i++;
-        }
-
-        i = 0;
-        l = n.length;
-
-        while (i < l) {
-            n[i] = jQuery(n[i]);
-            i++;
-        }
-
-        return n;
-    }
-
-});
-0, n = [];
 
         if (size < 1) return null;
 
