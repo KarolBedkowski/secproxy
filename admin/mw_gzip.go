@@ -76,7 +76,7 @@ func serveFile(w http.ResponseWriter, r *http.Request, fs http.FileSystem,
 		logMwGzip.
 			With("err", err).
 			With("asset", name).
-			Error("MW GZIP: Asset open error")
+			Debug("MW GZIP: Asset open error")
 		http.NotFound(w, r)
 	}
 }

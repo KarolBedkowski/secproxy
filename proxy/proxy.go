@@ -332,7 +332,7 @@ func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) 
 		}
 
 		if usr == "" {
-			w.Header().Set("WWW-Authenticate", "Basic realm=\"REALM\"")
+			w.Header().Set("WWW-Authenticate", "Basic realm=\"SecProxy\"")
 			l.With("status", 401).Info("Proxy: authenticationMW 401 Unauthorized")
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			counters.Add(endpoint+"|401", 1)
@@ -341,6 +341,7 @@ func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) 
 
 		user := globals.GetUser(usr)
 		if user.Active && conf.AcceptUser(user.Login) && user.CheckPassword(pass) {
+			l.With("user", user.Login).Debug("User authenticated")
 			r.Header.Set("X-Authenticated-User", usr)
 			counters.Add(endpoint+"|pass", 1)
 			h.ServeHTTP(w, r)
@@ -359,19 +360,16 @@ func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) 
 }
 
 func groupStatusCode(code int) string {
-	if code <= 100 && code < 200 {
+	switch {
+	case code >= 100 && code < 200:
 		return "1xx"
-	}
-	if code < 300 {
+	case code < 300:
 		return "2xx"
-	}
-	if code < 400 {
+	case code < 400:
 		return "3xx"
-	}
-	if code < 500 {
+	case code < 500:
 		return "4xx"
-	}
-	if code < 600 {
+	case code < 600:
 		return "5xx"
 	}
 	return "unk"
