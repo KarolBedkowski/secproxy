@@ -284,7 +284,7 @@ func EndpointErrors(name string) (e string) {
 			Debug("Proxt: get errors error")
 		e = err.String() + "; "
 	}
-	if err := errors.Get(name + "|ssl"); err != nil {
+	if err := errors.Get(name + "|ssl"); err != nil && err.String() != "" {
 		e = e + "SSL: " + err.String()
 	}
 	return e

@@ -123,6 +123,8 @@ func endpointPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 	switch r.Method {
 	case "POST":
 		r.ParseForm()
+		ctx.Form.Users = nil
+		ctx.Form.ClientCertificates = nil
 		if err := decoder.Decode(&ctx.Form, r.Form); err != nil {
 			log.With("err", err).
 				Info("Endpoint edit: decode form error; form=%+v", r.Form)
