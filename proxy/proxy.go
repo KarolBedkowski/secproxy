@@ -41,10 +41,10 @@ var (
 
 	log = logging.NewLogger("server")
 
-	metricsLabels = []string{"method", "code", "code_group", "endpoint"}
+	metricsLabels = []string{"method", "code", "code_group", "endpoint", "port"}
 
 	metricsOpts = prometheus.SummaryOpts{
-		Subsystem: "http",
+		Subsystem: "proxy",
 		Namespace: "secproxy",
 	}
 
@@ -63,8 +63,8 @@ var (
 		prometheus.SummaryOpts{
 			Namespace:   metricsOpts.Namespace,
 			Subsystem:   metricsOpts.Subsystem,
-			Name:        "request_duration_microseconds",
-			Help:        "The HTTP request latencies in microseconds.",
+			Name:        "request_duration_seconds",
+			Help:        "The HTTP request latencies in seconds.",
 			ConstLabels: metricsOpts.ConstLabels,
 		},
 		metricsLabels,
@@ -385,12 +385,13 @@ func metricsMW(h http.Handler, endpoint string, globals *config.Globals) http.Ha
 		writer := &common.ResponseWriter{ResponseWriter: w, Status: 200}
 
 		defer func() {
-			elapsed := float64(time.Since(now)) / float64(time.Microsecond)
+			elapsed := float64(time.Since(now)) / float64(time.Second)
 			method := strings.ToLower(r.Method)
 			code := strconv.Itoa(writer.Status)
 			group := groupStatusCode(writer.Status)
-			metricReqCnt.WithLabelValues(method, code, group, endpoint).Inc()
-			metricReqDur.WithLabelValues(method, code, group, endpoint).Observe(elapsed)
+			port := r.URL.Port()
+			metricReqCnt.WithLabelValues(method, code, group, endpoint, port).Inc()
+			metricReqDur.WithLabelValues(method, code, group, endpoint, port).Observe(elapsed)
 		}()
 
 		h.ServeHTTP(writer, r)
