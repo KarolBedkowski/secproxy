@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"expvar"
+	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"io/ioutil"
 	"k.prv/secproxy/common"
@@ -205,6 +206,20 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 				clog.Debug("loaded cert: cn=%s ", cert.Subject.CommonName)
 			}
 			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+			tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+				for _, cg := range verifiedChains {
+					for _, cert := range cg {
+						for _, ccert := range tlsConfig.Certificates {
+							c := ccert.Leaf
+							if c != nil && cert.Equal(c) {
+								llog.Debug("Proxy: found cert cn=%s", cert.Subject.CommonName)
+								return nil
+							}
+						}
+					}
+				}
+				return fmt.Errorf("unknown client certificate")
+			}
 		}
 
 		if ln, err := net.Listen("tcp", conf.HTTPSAddress); err != nil {
