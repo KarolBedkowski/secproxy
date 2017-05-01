@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/Sirupsen/logrus"
+	"io"
 	"net/http"
 	"os"
 	"runtime"
@@ -90,6 +91,7 @@ type Logger interface {
 	With(key string, value interface{}) Logger
 	WithFields(values map[string]interface{}) Logger
 	WithRequest(r *http.Request) Logger
+	Writer() io.Writer
 }
 
 type logger struct {
@@ -143,6 +145,10 @@ func (l logger) WithFields(values map[string]interface{}) Logger {
 
 func (l logger) WithRequest(r *http.Request) Logger {
 	return logger{LogForRequest(l.entry, r)}
+}
+
+func (l logger) Writer() io.Writer {
+	return l.entry.Logger.Writer()
 }
 
 func sourcedlog(l *logrus.Logger) *logrus.Entry {

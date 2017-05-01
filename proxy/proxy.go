@@ -7,6 +7,7 @@ import (
 	"k.prv/secproxy/common"
 	"k.prv/secproxy/config"
 	"k.prv/secproxy/logging"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -39,7 +40,8 @@ var (
 	errors   = expvar.NewMap("errors")
 	mu       sync.RWMutex
 
-	log = logging.NewLogger("server")
+	logServer   = logging.NewLogger("server")
+	proxyLogger = log.New(logServer.Writer(), "proxy", 0)
 
 	metricsLabels = []string{"method", "code", "code_group", "endpoint", "port"}
 
@@ -77,7 +79,7 @@ func init() {
 }
 
 func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
-	llog := log.With("endpoint", name)
+	llog := logServer.With("endpoint", name)
 	llog.Info("Proxy: starting endpoint")
 
 	mu.Lock()
@@ -112,7 +114,9 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 
 	var handler http.Handler
 
-	handler = httputil.NewSingleHostReverseProxy(uri)
+	revproxy := httputil.NewSingleHostReverseProxy(uri)
+	revproxy.ErrorLog = proxyLogger
+	handler = http.Handler(revproxy)
 	handler = authenticationMW(handler, name, globals)
 	handler = counterMw(handler, name)
 	handler = common.LogHandler(handler, "server:", map[string]interface{}{"endpoint": name, "module": "server"})
@@ -202,7 +206,7 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 }
 
 func StopEndpoint(name string) {
-	llog := log.With("endpoint", name)
+	llog := logServer.With("endpoint", name)
 	llog.Info("Proxy: stop endpoint")
 	mu.RLock()
 	defer mu.RUnlock()
@@ -231,7 +235,7 @@ func EndpointRunning(name string) bool {
 
 func EndpointErrors(name string) (e string) {
 	if err := errors.Get(name); err != nil && err.String() != "" {
-		log.With("endpoint", name).
+		logServer.With("endpoint", name).
 			With("err", err).
 			Debug("Proxt: get errors error")
 		e = err.String() + "; "
@@ -256,7 +260,7 @@ func prepareNetworks(addrs string) (networks []*net.IPNet) {
 			if _, network, err := net.ParseCIDR(n); err == nil {
 				networks = append(networks, network)
 			} else {
-				log.With("err", err).
+				logServer.With("err", err).
 					With("net", n).
 					Warn("Proxy: prepare networks error")
 			}
@@ -271,12 +275,12 @@ func prepareNetworks(addrs string) (networks []*net.IPNet) {
 				network := &net.IPNet{ip, mask}
 				networks = append(networks, network)
 			} else {
-				log.With("net", n).
+				logServer.With("net", n).
 					Warn("Proxy: prepare ip error")
 			}
 		}
 	}
-	log.With("networks", networks).
+	logServer.With("networks", networks).
 		With("inp", addrs).
 		Debug("Proxy: prepareNetworks done")
 	return
@@ -290,7 +294,7 @@ func acceptAddress(networks []*net.IPNet, addr string) bool {
 	}
 	a := net.ParseIP(addr)
 	if a == nil {
-		log.With("addr", addr).Warn("Proxy: acceptAddress parse error")
+		logServer.With("addr", addr).Warn("Proxy: acceptAddress parse error")
 		return false
 	}
 	for _, n := range networks {
@@ -308,7 +312,7 @@ func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) 
 		networks = prepareNetworks(conf.AcceptAddr)
 	}
 
-	llog := log.With("endpoint", endpoint)
+	llog := logServer.With("endpoint", endpoint)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		l := llog.WithRequest(r)
