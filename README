@@ -2,7 +2,7 @@
  secproxy 0.x.x
 ++++++++++++++++
 
-:Credits: Copyright (c) Karol Będkowski, 2015
+:Credits: Copyright (c) Karol Będkowski, 2015-2017
 :Licence: GPLv2+
 :Status: beta
 :Tags: proxy, reverse proxy, security
@@ -20,9 +20,9 @@ Requirements:
 
    * gorilla {context,mux,sessions,securecookie,schema} (http://gihub.com/gorilla)
    * bcrypt (http://code.google.com/p/go.crypto/bcrypt)
-   * kv (https://github.com/cznic/kv)
    * toml (https://github.com/naoina/toml/)
-   * log15 (http://gopkg.in/inconshreveable/log15.v2)
+	* boltdb (http://github.com/boltdb/bolt/)
+	* logrus (http://github.com/Sirupsen/logrus/)
 
  * go-asset-builder (optional)
  * yui-compressor (optional)
