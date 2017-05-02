@@ -5,7 +5,7 @@
 {{ define "body" }}
 <h2>Endpoints</h2>
 
- <a href="/endpoints/<new>" class="uk-button"><i class="uk-icon-plus"></i> Create</a>
+<a href="/endpoints/endpoint/" class="uk-button"><i class="uk-icon-plus"></i> Create</a>
 
 <table class="uk-table uk-table-hover uk-table-striped uk-table-condensed">
 	<thead>
@@ -26,16 +26,16 @@
 				{{ with .Errors }}<i class="uk-icon-warning" data-uk-tooltip title="{{ . }}"></i>{{ end }}
 				{{ if .Running }}
 				<div class="uk-badge uk-badge-success">running</div>
-				<a href="/endpoints/{{ .Name }}/stop">Stop</a>
+				<a href="/endpoints/endpoint/{{ .Name }}/stop">Stop</a>
 				{{ else }}
 				<div class="uk-badge">stopped</div>
-				<a href="/endpoints/{{ .Name }}/start">Start</a>
+				<a href="/endpoints/endpoint/{{ .Name }}/start">Start</a>
 				{{ end }}
 			</td>
 			<td>{{ .Local }}</td>
 			<td>{{ .LocalHTTPS }}</td>
 			<td>{{ .Remote }}</td>
-			<td><a href="/endpoints/{{ .Name }}">Edit</a></td>
+			<td><a href="/endpoints/endpoint/{{ .Name }}">Edit</a></td>
 		</tr>
 		{{ end }}
 	</tbody>

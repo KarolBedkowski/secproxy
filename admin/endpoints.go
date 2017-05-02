@@ -15,8 +15,9 @@ var logEP = logging.NewLogger("admin.auth")
 func InitEndpointsHandlers(globals *config.Globals, parentRotuer *mux.Route) {
 	router := parentRotuer.Subrouter()
 	router.HandleFunc("/", SecurityContextHandler(endpointsPageHandler, globals, "ADMIN"))
-	router.HandleFunc("/{name}", SecurityContextHandler(endpointPageHandler, globals, "ADMIN"))
-	router.HandleFunc("/{name}/{action}", SecurityContextHandler(endpointActionPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/endpoint/", SecurityContextHandler(endpointPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/endpoint/{name}", SecurityContextHandler(endpointPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/endpoint/{name}/{action}", SecurityContextHandler(endpointActionPageHandler, globals, "ADMIN"))
 }
 
 type endpoint struct {
@@ -38,23 +39,21 @@ func endpointsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePage
 	for _, ep := range bctx.Globals.GetEndpoints() {
 		ctx.Endpoints = append(ctx.Endpoints,
 			&endpoint{
-				ep.Name,
-				proxy.EndpointRunning(ep.Name),
-				ep.HTTPAddress,
-				ep.HTTPSAddress,
-				ep.Destination,
-				proxy.EndpointErrors(ep.Name),
+				Name:       ep.Name,
+				Running:    proxy.EndpointRunning(ep.Name),
+				Local:      ep.HTTPAddress,
+				LocalHTTPS: ep.HTTPSAddress,
+				Remote:     ep.Destination,
+				Errors:     proxy.EndpointErrors(ep.Name),
 			})
 	}
 	RenderTemplateStd(w, ctx, "endpoints/index.tmpl")
 }
 
-type (
-	endpointForm struct {
-		*config.EndpointConf
-		Errors map[string]string `schema:"-"`
-	}
-)
+type endpointForm struct {
+	*config.EndpointConf
+	Errors map[string]string `schema:"-"`
+}
 
 func (f *endpointForm) Validate(globals *config.Globals, newEp bool) (errors map[string]string) {
 	errors = f.EndpointConf.Validate()
@@ -70,6 +69,7 @@ func (f *endpointForm) HasUser(name string) bool {
 	return false
 }
 
+// HasCCert check is certificate `name` in in client certificates list
 func (f *endpointForm) HasCCert(name string) bool {
 	for _, u := range f.ClientCertificates {
 		if u == name {
@@ -80,7 +80,6 @@ func (f *endpointForm) HasCCert(name string) bool {
 }
 
 func endpointPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
-	vars := mux.Vars(r)
 	ctx := &struct {
 		*BasePageContext
 		Form     endpointForm
@@ -94,48 +93,40 @@ func endpointPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 		Keys:            bctx.Globals.FindKeys(),
 	}
 
-	log := logEP.WithRequest(r).With("user", bctx.UserLogin())
-
-	if r.Method == "POST" && r.FormValue("_method") != "" {
-		r.Method = r.FormValue("_method")
-	}
+	vars := mux.Vars(r)
 	epname, ok := vars["name"]
-	if !ok || epname == "" {
-		log.Debug("Endpoint edit: missing name")
-		http.Error(w, "Missing name", http.StatusBadRequest)
-		return
-	}
+	newEp := !ok || epname == ""
+	log := logEP.WithRequest(r).With("user", bctx.UserLogin()).With("endpoint", epname)
 
-	newEp := epname == "<new>"
-
-	if !newEp {
+	if newEp {
+		ctx.Form.EndpointConf = &config.EndpointConf{}
+	} else {
 		if ep := bctx.Globals.GetEndpoint(epname); ep != nil {
 			ctx.Form.EndpointConf = ep.Clone()
 		} else {
-			log.Info("Endpoint edit: endpoint %s not found", epname)
+			log.Info("Endpoint edit: endpoint %v not found", epname)
 			http.Error(w, "Endpoint not found", http.StatusNotFound)
 			return
 		}
-	} else {
-		ctx.Form.EndpointConf = &config.EndpointConf{}
 	}
-
-	log = log.With("endpoint", epname)
 
 	switch r.Method {
 	case "POST":
 		r.ParseForm()
 		ctx.Form.Users = nil
 		ctx.Form.ClientCertificates = nil
+
 		if err := decoder.Decode(&ctx.Form, r.Form); err != nil {
 			log.With("err", err).
 				Info("Endpoint edit: decode form error; form=%+v", r.Form)
 			break
 		}
+
 		if errors := ctx.Form.Validate(bctx.Globals, newEp); len(errors) > 0 {
 			ctx.Form.Errors = errors
 			break
 		}
+
 		bctx.Globals.SaveEndpoint(ctx.Form.EndpointConf)
 		ctx.AddFlashMessage("Endpoint saved", "success")
 		ctx.Save()
@@ -143,37 +134,27 @@ func endpointPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 		http.Redirect(w, r, "/endpoints/", http.StatusFound)
 		return
 	}
+
 	ctx.Save()
 	RenderTemplateStd(w, ctx, "endpoints/endpoint.tmpl")
-
 }
 
 func endpointActionPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
-	log := logEP.WithRequest(r).With("user", bctx.UserLogin())
-
 	vars := mux.Vars(r)
-	epname, ok := vars["name"]
-	if !ok || epname == "" {
-		log.Debug("Endpoint action: missing name")
-		http.Error(w, "Missing name", http.StatusBadRequest)
+	epname := vars["name"]
+	action := vars["action"]
+	log := logEP.WithRequest(r).With("user", bctx.UserLogin()).
+		With("endpoint", epname).With("action", action)
+
+	if epname == "" || action == "" {
+		log.Debug("Endpoint action: missing arguments")
+		http.Error(w, "Wrong arguments", http.StatusBadRequest)
 		return
 	}
-
-	log = log.With("endpoint", epname)
-
-	action, ok := vars["action"]
-	if !ok || action == "" {
-		log.Info("Endpoint action: missing action")
-		http.Error(w, "Missing action", http.StatusBadRequest)
-		return
-	}
-
-	log = log.With("action", action)
 
 	switch action {
 	case "start":
-		err := proxy.StartEndpoint(epname, bctx.Globals)
-		if len(err) == 0 {
+		if err := proxy.StartEndpoint(epname, bctx.Globals); len(err) == 0 {
 			bctx.AddFlashMessage("Endpoint started", "success")
 		} else {
 			bctx.AddFlashMessage("Endpoint failed to start: "+strings.Join(err, ", "), "error")
@@ -190,7 +171,10 @@ func endpointActionPageHandler(w http.ResponseWriter, r *http.Request, bctx *Bas
 		break
 	default:
 		log.Info("Endpoint action: invalid action=%v", action)
+		http.Error(w, "Endpoint not found", http.StatusBadRequest)
+		return
 	}
+
 	bctx.Save()
 	http.Redirect(w, r, "/endpoints/", http.StatusFound)
 	return

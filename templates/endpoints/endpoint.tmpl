@@ -149,9 +149,11 @@
 						<a href="/endpoints/" class="uk-button">Cancel</a>
 						<button type="submit" class="uk-button uk-button-primary">Save</button>
 					</div>
+					{{ if not (eq .Form.Name "") }}
 					<div class="uk-float-left">
 						<button type="button" class="uk-button uk-button-danger" id="btn-delete">Delete</button>
 					</div>
+					{{ end  }}
 				</div>
 			</div>
 		</form>
