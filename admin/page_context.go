@@ -62,11 +62,16 @@ func (ctx *BasePageContext) GetFlashMessage() map[string][]interface{} {
 }
 
 // AddFlashMessage to context
-func (ctx *BasePageContext) AddFlashMessage(msg interface{}, kind ...string) {
-	if len(kind) > 0 {
-		ctx.Session.AddFlash(msg, kind...)
+func (ctx *BasePageContext) AddFlashMessage(msg string, kind string) {
+	ctx.Session.AddFlash(msg, kind)
+}
+
+// AddFlashMessageErr in dev mode show error
+func (ctx *BasePageContext) AddFlashMessageErr(msg string, err string, kind string) {
+	if ctx.GetGlobals().DevMode {
+		ctx.Session.AddFlash(msg+" ("+err+")", kind)
 	} else {
-		ctx.Session.AddFlash(msg, "info")
+		ctx.Session.AddFlash(msg, kind)
 	}
 }
 

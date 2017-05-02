@@ -41,7 +41,7 @@ func certUploadPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePag
 	if err != nil {
 		log.With("err", err).
 			Info("Upload cert: get form file error")
-		bctx.AddFlashMessage("Upload file error: "+err.Error(), "error")
+		bctx.AddFlashMessageErr("Upload file error", err.Error(), "error")
 		bctx.Save()
 		http.Redirect(w, r, "/certs/", http.StatusFound)
 		return
@@ -50,9 +50,8 @@ func certUploadPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePag
 	f, err := os.OpenFile(path.Join(bctx.Globals.Config.CertsDir, handler.Filename), os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		log.With("err", err).
-			Warn("ERROR: upload cert: open file %s error", handler.Filename)
-		bctx.AddFlashMessage("Upload file error: "+err.Error(), "error")
-		http.Redirect(w, r, "/certs/", http.StatusFound)
+			Warn("ERROR: upload cert: open file %s error", fhandler.Filename)
+		bctx.AddFlashMessageErr("Upload file error", err.Error(), "error")
 		bctx.Save()
 		return
 	}
@@ -64,7 +63,7 @@ func certUploadPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePag
 	} else {
 		log.With("err", err).With("filename", handler.Filename).
 			Warn("ERROR: Upload cert: upload file error")
-		bctx.AddFlashMessage("Upload file error: "+err.Error(), "error")
+		bctx.AddFlashMessageErr("Upload file error", err.Error(), "error")
 	}
 	bctx.Save()
 	http.Redirect(w, r, "/certs/", http.StatusFound)
@@ -108,7 +107,7 @@ func certDeletePageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePag
 	} else {
 		log.With("err", err).
 			Warn("ERROR: Delete certificate: error")
-		bctx.AddFlashMessage("File delete error: "+err.Error(), "error")
+		bctx.AddFlashMessageErr("File delete error", err.Error(), "error")
 	}
 	bctx.Save()
 	http.Redirect(w, r, "/certs/", http.StatusFound)
