@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-var loggerSett = logging.NewLogger("web")
+var logSettings = logging.NewLogger("web")
 
 // Init - Initialize application
 func InitSettingsHandlers(globals *config.Globals, parentRotuer *mux.Route) {
@@ -32,6 +32,7 @@ func settingsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 }
 
 func setdebugPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
+	log := logSettings.WithRequest(r)
 	r.ParseForm()
 	level := ""
 	if levels, ok := r.Form["l"]; ok && len(levels) > 0 {
@@ -39,17 +40,22 @@ func setdebugPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 	}
 
 	if logging.SetLogLevel(level) {
-		loggerSett.WithRequest(r).Warn("NOTICE: Set logging level - change to level %v", level)
+		log.Warn("NOTICE: Set logging level - change to level %v", level)
 		bctx.AddFlashMessage("Logging level changed", "success")
 		bctx.Save()
+	} else {
+		log.Info("Settings: bad log level: %v", level)
+		http.Error(w, "Wrong arguments", http.StatusBadRequest)
+		return
 	}
+
 	http.Redirect(w, r, "/settings/", http.StatusFound)
 }
 
 func confReloadPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
+	logSettings.WithRequest(r).Info("Settings: reload config request")
 	bctx.Globals.ReloadConfig()
 	bctx.AddFlashMessage("Configuration reloaded", "success")
 	bctx.Save()
 	http.Redirect(w, r, "/settings/", http.StatusFound)
-
 }
