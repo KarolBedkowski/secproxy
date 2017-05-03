@@ -8,28 +8,30 @@
 	<thead>
 		<tr>
 			<th class="uk-width-1-6">Endpoint</th>
-			<th class="uk-width-1-6">Status</th>
-			<th class="uk-width-1-6">Status-SSL</th>
+			<th class="uk-width-1-6">Status HTTP</th>
+			<th class="uk-width-1-6">Status HTTPS</th>
 			<th class="uk-width-1-6">Auth Success</th>
 			<th class="uk-width-1-6">Auth 401</th>
 			<th class="uk-width-1-6">Auth 403</th>
-			<th class="uk-width-1-6">All Requests</th>
+			<th class="uk-width-1-6">Fail</th>
+			<th class="uk-width-1-6">Total</th>
 		</tr>
 	</thead>
 	<tbody>
 		{{ range .Stats }}
 		<tr>
 			<td>{{ .Endpoint }}</td>
-			<td>{{ .Status }}
-				{{ with .Error }}<i class="uk-icon-warning" data-uk-tooltip title="{{ . }}"></i>{{ end }}
+			<td>{{ .StatusHTTP }}
+				{{ with .ErrorHTTP }}<i class="uk-icon-warning" data-uk-tooltip title="{{ . }}"></i>{{ end }}
 			</td>
-			<td>{{ .StatusSSL }}
-				{{ with .ErrorSSL }}<i class="uk-icon-warning" data-uk-tooltip title="{{ . }}"></i>{{ end }}
+			<td>{{ .StatusHTTPS }}
+				{{ with .ErrorHTTPS }}<i class="uk-icon-warning" data-uk-tooltip title="{{ . }}"></i>{{ end }}
 			</td>
 			<td>{{ .Success }}</td>
-			<td>{{ .Unauthorized }}</td>
+			<td>{{ .Status401}}</td>
+			<td>{{ .Status403}}</td>
 			<td>{{ .Fail }}</td>
-			<td>{{ .All }}</td>
+			<td>{{ .Total }}</td>
 		</tr>
 		{{ end }}
 	</tbody>

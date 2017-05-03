@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"expvar"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"io/ioutil"
@@ -18,32 +17,11 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
-type (
-	state struct {
-		running        bool
-		runningSSL     bool
-		serverClose    chan bool
-		serverSSLClose chan bool
-	}
-
-	varState string
-)
-
-func (v varState) String() string {
-	return string(v)
-}
-
 var (
-	states   = make(map[string]*state)
-	counters = expvar.NewMap("counters")
-	servStat = expvar.NewMap("states")
-	errors   = expvar.NewMap("errors")
-	mu       sync.RWMutex
-
+	endpoints   = newEndpointsInfo()
 	logServer   = logging.NewLogger("server")
 	proxyLogger = log.New(logServer.Writer(), "proxy", 0)
 
@@ -86,27 +64,6 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 	llog := logServer.With("endpoint", name)
 	llog.Info("Proxy: starting endpoint")
 
-	mu.Lock()
-	defer mu.Unlock()
-
-	var st *state
-	var ok bool
-	if st, ok = states[name]; ok && st != nil {
-		if st.running || st.runningSSL {
-			llog.Info("Proxy: endpoint already started")
-			return []string{"already running"}
-		}
-	}
-	if st == nil {
-		st = &state{
-			serverClose:    make(chan bool),
-			serverSSLClose: make(chan bool),
-		}
-		states[name] = st
-	}
-
-	servStat.Set(name, varState("stopped"))
-	servStat.Set(name+"|ssl", varState("stopped"))
 	conf := globals.GetEndpoint(name)
 	if conf == nil {
 		return []string{"invalid endpoint"}
@@ -116,13 +73,19 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 		return []string{"invalid url"}
 	}
 
+	if statusHTTP, statusHTTPS := endpoints.EndpointStatus(name); !statusHTTPS.CanStart() || !statusHTTP.CanStart() {
+		llog.Info("Proxy: endpoint can't start; statuses: %s, %s", statusHTTP, statusHTTPS)
+		return []string{"already running"}
+	}
+
+	st := endpoints.AddEndpoint(name)
+
 	var handler http.Handler
 
 	revproxy := httputil.NewSingleHostReverseProxy(uri)
 	revproxy.ErrorLog = proxyLogger
 	handler = http.Handler(revproxy)
 	handler = authenticationMW(handler, name, globals)
-	handler = counterMw(handler, name)
 	handler = common.LogHandler(handler, "server:", map[string]interface{}{"endpoint": name, "module": "server"})
 	// TODO: stats handler
 	handler = metricsMW(handler, name, globals)
@@ -140,23 +103,23 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 			llog.With("err", e).
 				Info("Proxy: start HTTP server error")
 			errstr = append(errstr, "starting http error "+e.Error())
-			errors.Set(name, varState(e.Error()))
+			endpoints.SetStatus(name, EndpointError, e.Error())
 		} else {
 			go func() {
-				st.running = true
+				stopChain := st.serverHTTPClose
 				go s.Serve(ls)
-				servStat.Set(name, varState("running"))
-				errors.Set(name, varState(""))
+				endpoints.SetStatus(name, EndpointStarted, "")
 				select {
-				case <-st.serverClose:
+				case <-stopChain:
 					llog.Info("Proxy: stopping http")
 					ls.Close()
-					st.running = false
-					servStat.Set(name, varState("stopped"))
+					endpoints.SetStatus(name, EndpointStopped, "")
 					return
 				}
 			}()
 		}
+	} else {
+		endpoints.SetStatus(name, EndpointStopped, "")
 	}
 
 	if conf.HTTPSAddress != "" {
@@ -179,7 +142,7 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 		if cert, err := tls.LoadX509KeyPair(conf.SslCert, conf.SslKey); err != nil {
 			llog.With("err", err).Info("Proxy: starting HTTPS cert error")
 			errstr = append(errstr, "starting https - cert error "+err.Error())
-			errors.Set(name+"|ssl", varState(err.Error()))
+			endpoints.SetStatusHTTPS(name, EndpointError, err.Error())
 		} else {
 			tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
 		}
@@ -226,24 +189,24 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 			llog.With("err", err).
 				Error("Proxy: start HTTPS listen error")
 			errstr = append(errstr, "starting https error "+err.Error())
-			errors.Set(name+"|ssl", varState(err.Error()))
+			endpoints.SetStatusHTTPS(name, EndpointError, err.Error())
 		} else {
 			tlsListener := tls.NewListener(ln, tlsConfig)
 			go func() {
-				st.runningSSL = true
+				stopChain := st.serverHTTPSClose
 				go s.Serve(tlsListener)
-				servStat.Set(name+"|ssl", varState("running"))
-				errors.Set(name+"|ssl", varState(""))
+				endpoints.SetStatusHTTPS(name, EndpointStarted, "")
 				select {
-				case <-st.serverSSLClose:
+				case <-stopChain:
 					llog.Info("Proxy: stopping HTTPS")
 					ln.Close()
-					st.runningSSL = false
-					servStat.Set(name, varState("stopped"))
+					endpoints.SetStatusHTTPS(name, EndpointStopped, "")
 					return
 				}
 			}()
 		}
+	} else {
+		endpoints.SetStatusHTTPS(name, EndpointStopped, "")
 	}
 
 	return
@@ -252,49 +215,52 @@ func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
 func StopEndpoint(name string) {
 	llog := logServer.With("endpoint", name)
 	llog.Info("Proxy: stop endpoint")
-	mu.RLock()
-	defer mu.RUnlock()
-	state, ok := states[name]
-	if !ok {
-		return
-	}
-	if state.running {
+
+	statusHTTP, statusHTTPS := endpoints.EndpointStatus(name)
+	if statusHTTP == EndpointStarted {
 		llog.Debug("Proxy: stopping http")
-		state.serverClose <- true
+		if state, ok := endpoints.getState(name); ok {
+			state.serverHTTPClose <- true
+		}
 	}
-	if state.runningSSL {
+	if statusHTTPS == EndpointStarted {
 		llog.Debug("Proxy: stopping https")
-		state.serverSSLClose <- true
+		if state, ok := endpoints.getState(name); ok {
+			state.serverHTTPSClose <- true
+		}
 	}
 }
 
 func EndpointRunning(name string) bool {
-	mu.RLock()
-	defer mu.RUnlock()
-	if st, ok := states[name]; ok {
-		return st.running || st.runningSSL
-	}
-	return false
+	statusHTTP, statusHTTPS := endpoints.EndpointStatus(name)
+	return statusHTTP == EndpointStarted || statusHTTPS == EndpointStarted
 }
 
 func EndpointErrors(name string) (e string) {
-	if err := errors.Get(name); err != nil && err.String() != "" {
-		logServer.With("endpoint", name).
-			With("err", err).
-			Debug("Proxt: get errors error")
-		e = err.String() + "; "
+	errorHTTP, errorHTTPS := endpoints.EndpointError(name)
+	if errorHTTP == "" || errorHTTPS == "" {
+		return ""
 	}
-	if err := errors.Get(name + "|ssl"); err != nil && err.String() != "" {
-		e = e + "SSL: " + err.String()
+	logServer.With("endpoint", name).
+		Debug("Proxt: get errors error: http: %v", errorHTTP)
+	logServer.With("endpoint", name).
+		Debug("Proxt: get errors error: https: %v", errorHTTPS)
+
+	if errorHTTP != "" {
+		e = "HTTP: " + errorHTTP
+	}
+	if errorHTTPS != "" {
+		if e != "" {
+			e += "; "
+		}
+		e += "HTTPS: " + errorHTTPS
+
 	}
 	return e
 }
 
-func counterMw(h http.Handler, endpoint string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		counters.Add(endpoint, 1)
-		h.ServeHTTP(w, r)
-	})
+func EndpointsInfo() []*EndpointInfo {
+	return endpoints.GetInfo()
 }
 
 func prepareNetworks(addrs string) (networks []*net.IPNet) {
@@ -364,7 +330,7 @@ func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) 
 			if !acceptAddress(networks, r.RemoteAddr) {
 				l.Info("Proxy: authenticationMW 403 Forbidden - addr")
 				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-				counters.Add(endpoint+"|403", 1)
+				endpoints.AddStatus403(endpoint)
 				return
 			}
 		}
@@ -383,7 +349,7 @@ func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) 
 			w.Header().Set("WWW-Authenticate", "Basic realm=\"SecProxy\"")
 			l.With("status", 401).Info("Proxy: authenticationMW 401 Unauthorized")
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			counters.Add(endpoint+"|401", 1)
+			endpoints.AddStatus401(endpoint)
 			return
 		}
 
@@ -391,13 +357,13 @@ func authenticationMW(h http.Handler, endpoint string, globals *config.Globals) 
 		if user.Active && conf.AcceptUser(user.Login) && user.CheckPassword(pass) {
 			l.With("user", user.Login).Debug("User authenticated")
 			r.Header.Set("X-Authenticated-User", usr)
-			counters.Add(endpoint+"|pass", 1)
+			endpoints.AddSuccess(endpoint)
 			h.ServeHTTP(w, r)
 			return
 		}
 		//log.Info("authenticationMW ", endpoint, " 403 Forbidden")
 		//http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-		counters.Add(endpoint+"|403", 1)
+		endpoints.AddStatus401(endpoint)
 
 		w.Header().Set("WWW-Authenticate", "Basic realm=\"REALM\"")
 		l.With("user", user.Login).With("user_active", user.Active).
