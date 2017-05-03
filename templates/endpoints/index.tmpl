@@ -11,7 +11,6 @@
 	<thead>
 		<tr>
 			<th>Name</th>
-			<th>Status</th>
 			<th>Local HTTP</th>
 			<th>Local HTTPS</th>
 			<th>Remote</th>
@@ -22,20 +21,38 @@
 		{{ range .Endpoints }}
 		<tr>
 			<td>{{ .Name }}</td>
+			<td>{{ with .ErrorHTTP }}<i class="uk-icon-warning" data-uk-tooltip title="{{ . }}"></i>{{ end }}
+				{{ if eq .StatusHTTP "started" }}
+				<div class="uk-badge uk-badge-success">started</div>
+				{{ else if eq .StatusHTTP "stopped" }}
+				<div class="uk-badge">stopped</div>
+				{{ else if eq .StatusHTTP "error" }}
+				<div class="uk-badge uk-badge-warning">error</div>
+				{{ else }}
+				{{ .StatusHTTP }}
+				{{ end }}
+				{{ .LocalHTTP }}</td>
+			<td>{{ with .ErrorHTTPS }}<i class="uk-icon-warning" data-uk-tooltip title="{{ . }}"></i>{{ end }}
+				{{ if eq .StatusHTTPS "started" }}
+				<div class="uk-badge uk-badge-success">started</div>
+				{{ else if eq .StatusHTTPS "stopped" }}
+				<div class="uk-badge">stopped</div>
+				{{ else if eq .StatusHTTPS "error" }}
+				<div class="uk-badge uk-badge-warning">error</div>
+				{{ else }}
+				{{ .StatusHTTP }}
+				{{ end }}
+				{{ .LocalHTTPS }}</td>
+			<td>{{ .Remote }}</td>
 			<td>
-				{{ with .Errors }}<i class="uk-icon-warning" data-uk-tooltip title="{{ . }}"></i>{{ end }}
+				<a href="/endpoints/endpoint/{{ .Name }}">Edit</a>
+				|
 				{{ if .Running }}
-				<div class="uk-badge uk-badge-success">running</div>
 				<a href="/endpoints/endpoint/{{ .Name }}/stop">Stop</a>
 				{{ else }}
-				<div class="uk-badge">stopped</div>
 				<a href="/endpoints/endpoint/{{ .Name }}/start">Start</a>
 				{{ end }}
 			</td>
-			<td>{{ .Local }}</td>
-			<td>{{ .LocalHTTPS }}</td>
-			<td>{{ .Remote }}</td>
-			<td><a href="/endpoints/endpoint/{{ .Name }}">Edit</a></td>
 		</tr>
 		{{ end }}
 	</tbody>

@@ -39,24 +39,13 @@ func (s EndpointStatus) String() string {
 	return "unknown"
 }
 
-func (s EndpointStatus) CanStart() bool {
+func (s EndpointStatus) canStart() bool {
 	return s == EndpointNotExits ||
 		s == EndpointStopped ||
 		s == EndpointError
 }
 
-type EndpointCounters struct {
-	Fail      uint
-	Success   uint
-	Status401 uint
-	Status403 uint
-}
-
-func (e *EndpointCounters) Total() uint {
-	return e.Fail + e.Success + e.Status401 + e.Status403
-}
-
-type state struct {
+type endpointState struct {
 	statusHTTP  EndpointStatus
 	statusHTTPS EndpointStatus
 	errorHTTP   string
@@ -65,11 +54,14 @@ type state struct {
 	serverHTTPClose  chan bool
 	serverHTTPSClose chan bool
 
-	counters EndpointCounters
+	fail      uint
+	success   uint
+	status401 uint
+	status403 uint
 }
 
-func newState() *state {
-	return &state{
+func newState() *endpointState {
+	return &endpointState{
 		statusHTTP:  EndpointNotConfigured,
 		statusHTTPS: EndpointNotConfigured,
 
@@ -80,16 +72,16 @@ func newState() *state {
 
 type endpointsInfo struct {
 	mutex  sync.RWMutex
-	states map[string]*state
+	states map[string]*endpointState
 }
 
 func newEndpointsInfo() *endpointsInfo {
 	return &endpointsInfo{
-		states: make(map[string]*state),
+		states: make(map[string]*endpointState),
 	}
 }
 
-func (e *endpointsInfo) AddEndpoint(endpoint string) *state {
+func (e *endpointsInfo) addEndpoint(endpoint string) *endpointState {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
@@ -102,7 +94,7 @@ func (e *endpointsInfo) AddEndpoint(endpoint string) *state {
 	return es
 }
 
-func (e *endpointsInfo) getState(endpoint string) (*state, bool) {
+func (e *endpointsInfo) getState(endpoint string) (*endpointState, bool) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
@@ -110,7 +102,7 @@ func (e *endpointsInfo) getState(endpoint string) (*state, bool) {
 	return st, ok
 }
 
-func (e *endpointsInfo) SetStatus(endpoint string, status EndpointStatus, err string) {
+func (e *endpointsInfo) setStatus(endpoint string, status EndpointStatus, err string) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
@@ -121,7 +113,7 @@ func (e *endpointsInfo) SetStatus(endpoint string, status EndpointStatus, err st
 	}
 }
 
-func (e *endpointsInfo) SetStatusHTTPS(endpoint string, status EndpointStatus, err string) {
+func (e *endpointsInfo) setStatusHTTPS(endpoint string, status EndpointStatus, err string) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
@@ -132,43 +124,43 @@ func (e *endpointsInfo) SetStatusHTTPS(endpoint string, status EndpointStatus, e
 	}
 }
 
-func (e *endpointsInfo) AddSuccess(endpoint string) {
+func (e *endpointsInfo) addSuccess(endpoint string) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
 	if es, ok := e.states[endpoint]; ok {
-		es.counters.Success += 1
+		es.success += 1
 	}
 }
 
-func (e *endpointsInfo) AddFailed(endpoint string) {
+func (e *endpointsInfo) addFailed(endpoint string) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
 	if es, ok := e.states[endpoint]; ok {
-		es.counters.Success += 1
+		es.fail += 1
 	}
 }
 
-func (e *endpointsInfo) AddStatus401(endpoint string) {
+func (e *endpointsInfo) addStatus401(endpoint string) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
 	if es, ok := e.states[endpoint]; ok {
-		es.counters.Status401 += 1
+		es.status401 += 1
 	}
 }
 
-func (e *endpointsInfo) AddStatus403(endpoint string) {
+func (e *endpointsInfo) addStatus403(endpoint string) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
 	if es, ok := e.states[endpoint]; ok {
-		es.counters.Status403 += 1
+		es.status403 += 1
 	}
 }
 
-func (e *endpointsInfo) EndpointStatus(endpoint string) (EndpointStatus, EndpointStatus) {
+func (e *endpointsInfo) status(endpoint string) (EndpointStatus, EndpointStatus) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	if es, ok := e.states[endpoint]; ok {
@@ -177,7 +169,7 @@ func (e *endpointsInfo) EndpointStatus(endpoint string) (EndpointStatus, Endpoin
 	return EndpointNotExits, EndpointNotExits
 }
 
-func (e *endpointsInfo) EndpointError(endpoint string) (string, string) {
+func (e *endpointsInfo) error(endpoint string) (string, string) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	if es, ok := e.states[endpoint]; ok {
@@ -207,11 +199,11 @@ func (e *endpointsInfo) GetInfo() []*EndpointInfo {
 	for name, st := range e.states {
 		ei := &EndpointInfo{
 			Endpoint:    name,
-			Fail:        st.counters.Fail,
-			Success:     st.counters.Success,
-			Status401:   st.counters.Status401,
-			Status403:   st.counters.Status403,
-			Total:       st.counters.Total(),
+			Fail:        st.fail,
+			Success:     st.success,
+			Status401:   st.status401,
+			Status403:   st.status403,
+			Total:       st.fail + st.success + st.status401 + st.status403,
 			StatusHTTP:  st.statusHTTP.String(),
 			StatusHTTPS: st.statusHTTPS.String(),
 			ErrorHTTP:   st.errorHTTP,
