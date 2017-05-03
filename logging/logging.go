@@ -144,7 +144,7 @@ func (l logger) WithFields(values map[string]interface{}) Logger {
 }
 
 func (l logger) WithRequest(r *http.Request) Logger {
-	return logger{LogForRequest(l.entry, r)}
+	return logger{logForRequest(l.entry, r)}
 }
 
 func (l logger) Writer() io.Writer {
@@ -163,40 +163,14 @@ func sourcedlog(l *logrus.Logger) *logrus.Entry {
 	return l.WithField("source", fmt.Sprintf("%s:%d", file, line))
 }
 
-func Debug(msg string, args ...interface{}) {
-	sourcedlog(Log).Debugf(msg, args...)
-}
-
-func Info(msg string, args ...interface{}) {
-	sourcedlog(Log).Infof(msg, args...)
-}
-
-func Warn(msg string, args ...interface{}) {
-	sourcedlog(Log).Warnf(msg, args...)
-}
-
-func Error(msg string, args ...interface{}) {
-	sourcedlog(Log).Errorf(msg, args...)
-}
-
-func Panic(msg string, args ...interface{}) {
-	sourcedlog(Log).Panicf(msg, args...)
-}
-
-func LogForRequest(l interface{}, r *http.Request) *logrus.Entry {
-	var le *logrus.Entry
-	le, ok := l.(*logrus.Entry)
-	if !ok {
-		le = logrus.NewEntry(l.(*logrus.Logger))
-	}
+func logForRequest(le *logrus.Entry, r *http.Request) *logrus.Entry {
 	f := logrus.Fields{
-		"method":     r.Method,
-		"host":       r.Host,
-		"url":        r.URL,
-		"requesturi": r.RequestURI,
-		"remote":     r.RemoteAddr,
-		"proto":      r.Proto,
-		//		"header":     r.Header,
+		"method": r.Method,
+		"host":   r.Host,
+		"url":    r.URL,
+		"remote": r.RemoteAddr,
+		//"requesturi": r.RequestURI,
+		//"proto":      r.Proto,
 	}
 	if val, ok := r.Header["X-Forwarded-For"]; ok {
 		f["x_forward_for"] = val

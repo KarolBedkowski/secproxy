@@ -18,11 +18,11 @@ type (
 )
 
 func (u *User) CheckPassword(pass string) (ok bool) {
-	err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(pass))
-	if err == nil {
+	if u.Password == "" && pass == "" {
 		return true
 	}
-	return u.Password == pass
+	err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(pass))
+	return err == nil
 }
 
 func (u *User) UpdatePassword(newPass string) {

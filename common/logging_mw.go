@@ -13,7 +13,7 @@ func LogHandler(h http.Handler, prefix string, logkv map[string]interface{}) htt
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
-		log := l.WithRequest(r).With("start", start.Unix()).WithFields(logkv)
+		log := l.WithRequest(r).WithFields(logkv)
 		log.Debug(prefix + " begin request")
 
 		writer := &ResponseWriter{ResponseWriter: w, Status: 200}
@@ -23,16 +23,12 @@ func LogHandler(h http.Handler, prefix string, logkv map[string]interface{}) htt
 			stack := debug.Stack()
 			if err := recover(); err == nil {
 				log.With("status", writer.Status).
-					With("end", end.Unix()).
-					With("time", end.Sub(start).String()).
-					Debug(prefix + " request finished")
+					Debug(prefix+" request finished; duration: %s", end.Sub(start).String())
 			} else {
 				log.With("status", writer.Status).
 					With("err", err).
-					With("end", end.Unix()).
-					With("duration", end.Sub(start).String()).
 					With("stack", string(stack)).
-					Info(prefix + " request error")
+					Info(prefix+" request error; duration: %s", end.Sub(start).String())
 			}
 		}()
 

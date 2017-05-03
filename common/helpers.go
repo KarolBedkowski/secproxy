@@ -6,6 +6,8 @@ import (
 	"os"
 )
 
+var log = logging.NewLogger("common.helpers")
+
 // BuildQuery format url query part from pairs key, val
 func BuildQuery(pairs ...string) (query string) {
 	pairsLen := len(pairs)
@@ -13,7 +15,7 @@ func BuildQuery(pairs ...string) (query string) {
 		return ""
 	}
 	if pairsLen%2 != 0 {
-		logging.Warn("BuildQuery: error - wrong number of arguments: %+v", pairs)
+		log.Warn("BuildQuery: error - wrong number of arguments: %+v", pairs)
 		return ""
 	}
 	query = "?"
