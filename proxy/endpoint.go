@@ -9,7 +9,9 @@ package proxy
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"k.prv/secproxy/common"
 	"k.prv/secproxy/config"
 	"k.prv/secproxy/logging"
@@ -61,6 +63,19 @@ func (s EndpointStatus) canStart() bool {
 		s == EndpointError
 }
 
+type EndpointInfo struct {
+	Endpoint    string
+	Fail        uint
+	Success     uint
+	Status401   uint
+	Status403   uint
+	Total       uint
+	StatusHTTP  string
+	StatusHTTPS string
+	ErrorHTTP   string
+	ErrorHTTPS  string
+}
+
 type proxyEndpoint struct {
 	conf    config.EndpointConf
 	globals *config.Globals
@@ -74,10 +89,11 @@ type proxyEndpoint struct {
 	serverHTTPClose  chan bool
 	serverHTTPSClose chan bool
 
-	fail      uint32
-	success   uint32
-	status401 uint32
-	status403 uint32
+	// counters
+	statusFail uint32
+	statusOk   uint32
+	status401  uint32
+	status403  uint32
 }
 
 func newProxyEndpoint(c config.EndpointConf, g *config.Globals) *proxyEndpoint {
@@ -106,20 +122,19 @@ func (e *proxyEndpoint) error() (string, string) {
 	return e.errorHTTP, e.errorHTTPS
 }
 
-func (p *proxyEndpoint) createHandler() (http.Handler, error) {
-	uri, err := url.Parse(p.conf.Destination)
-	if err != nil {
-		return nil, fmt.Errorf("invalid url: %v", p.conf.Destination)
+func (p *proxyEndpoint) Info() *EndpointInfo {
+	return &EndpointInfo{
+		Endpoint:    p.conf.Name,
+		Fail:        uint(p.statusFail),
+		Success:     uint(p.statusOk),
+		Status401:   uint(p.status401),
+		Status403:   uint(p.status403),
+		Total:       uint(p.statusFail + p.statusOk + p.status401 + p.status403),
+		StatusHTTP:  p.statusHTTP.String(),
+		StatusHTTPS: p.statusHTTPS.String(),
+		ErrorHTTP:   p.errorHTTP,
+		ErrorHTTPS:  p.errorHTTPS,
 	}
-
-	var handler http.Handler
-	revproxy := httputil.NewSingleHostReverseProxy(uri)
-	revproxy.ErrorLog = proxyLogger
-	handler = http.Handler(revproxy)
-	handler = p.authenticationMW(handler)
-	handler = common.LogHandler(handler, "server:", map[string]interface{}{"endpoint": p.conf.Name, "module": "server"})
-	handler = p.metricsMW(handler)
-	return handler, nil
 }
 
 func (p *proxyEndpoint) Start() error {
@@ -176,6 +191,22 @@ func (p *proxyEndpoint) Stop() error {
 		p.serverHTTPSClose <- true
 	}
 	return nil
+}
+
+func (p *proxyEndpoint) createHandler() (http.Handler, error) {
+	uri, err := url.Parse(p.conf.Destination)
+	if err != nil {
+		return nil, fmt.Errorf("invalid url: %v", p.conf.Destination)
+	}
+
+	var handler http.Handler
+	revproxy := httputil.NewSingleHostReverseProxy(uri)
+	revproxy.ErrorLog = proxyLogger
+	handler = http.Handler(revproxy)
+	handler = p.authenticationMW(handler)
+	handler = common.LogHandler(handler, "Proxy:", map[string]interface{}{"endpoint": p.conf.Name})
+	handler = p.metricsMW(handler)
+	return handler, nil
 }
 
 func (p *proxyEndpoint) startEndpointHTTP(handler http.Handler) error {
@@ -295,9 +326,8 @@ func (p *proxyEndpoint) authenticationMW(h http.Handler) http.Handler {
 		l := p.llog.WithRequest(r)
 		if networks != nil {
 			if !acceptAddress(networks, r.RemoteAddr) {
-				l.Info("Proxy: authenticationMW 403 Forbidden - addr")
+				l.Info("Proxy: request forbidden by network restrictions")
 				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-				atomic.AddUint32(&p.status403, 1)
 				return
 			}
 		}
@@ -312,30 +342,18 @@ func (p *proxyEndpoint) authenticationMW(h http.Handler) http.Handler {
 			pass, _ = r.URL.User.Password()
 		}
 
-		if usr == "" {
-			w.Header().Set("WWW-Authenticate", "Basic realm=\"SecProxy\"")
-			l.With("status", 401).Info("Proxy: authenticationMW 401 Unauthorized")
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			atomic.AddUint32(&p.status401, 1)
-			return
+		if usr != "" {
+			user := p.globals.GetUser(usr)
+			if user.Active && p.conf.AcceptUser(user.Login) && user.CheckPassword(pass) {
+				l.With("user", user.Login).Info("Proxy: request accepted for user")
+				r.Header.Set("X-Authenticated-User", usr)
+				h.ServeHTTP(w, r)
+				return
+			}
 		}
 
-		user := p.globals.GetUser(usr)
-		if user.Active && p.conf.AcceptUser(user.Login) && user.CheckPassword(pass) {
-			l.With("user", user.Login).Debug("User authenticated")
-			r.Header.Set("X-Authenticated-User", usr)
-			atomic.AddUint32(&p.success, 1)
-			h.ServeHTTP(w, r)
-			return
-		}
-		//log.Info("authenticationMW ", endpoint, " 403 Forbidden")
-		//http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-		atomic.AddUint32(&p.status401, 1)
-
-		w.Header().Set("WWW-Authenticate", "Basic realm=\"REALM\"")
-		l.With("user", user.Login).With("user_active", user.Active).
-			With("status", 401).
-			Info("Proxy: authenticationMW 401 Unauthorized")
+		w.Header().Set("WWW-Authenticate", "Basic realm=\"SecProxy\"")
+		l.With("status", 401).Info("Proxy: user unauthorized; need login")
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 	})
 }
@@ -355,36 +373,104 @@ func (p *proxyEndpoint) metricsMW(h http.Handler) http.Handler {
 			port := r.URL.Port()
 			metricReqCnt.WithLabelValues(method, code, group, p.conf.Name, port).Inc()
 			metricReqDur.WithLabelValues(method, code, group, p.conf.Name, port).Observe(elapsed)
+			switch {
+			case writer.Status == 401:
+				atomic.AddUint32(&p.status401, 1)
+			case writer.Status == 403:
+				atomic.AddUint32(&p.status403, 1)
+			case writer.Status >= 400:
+				atomic.AddUint32(&p.statusFail, 1)
+			case writer.Status < 400:
+				atomic.AddUint32(&p.statusOk, 1)
+			}
 		}()
 
 		h.ServeHTTP(writer, r)
 	})
 }
-
-type EndpointInfo struct {
-	Endpoint    string
-	Fail        uint
-	Success     uint
-	Status401   uint
-	Status403   uint
-	Total       uint
-	StatusHTTP  string
-	StatusHTTPS string
-	ErrorHTTP   string
-	ErrorHTTPS  string
+func groupStatusCode(code int) string {
+	switch {
+	case code >= 100 && code < 200:
+		return "1xx"
+	case code < 300:
+		return "2xx"
+	case code < 400:
+		return "3xx"
+	case code < 500:
+		return "4xx"
+	case code < 600:
+		return "5xx"
+	}
+	return "unk"
 }
 
-func (p *proxyEndpoint) Info() *EndpointInfo {
-	return &EndpointInfo{
-		Endpoint:    p.conf.Name,
-		Fail:        uint(p.fail),
-		Success:     uint(p.success),
-		Status401:   uint(p.status401),
-		Status403:   uint(p.status403),
-		Total:       uint(p.fail + p.success + p.status401 + p.status403),
-		StatusHTTP:  p.statusHTTP.String(),
-		StatusHTTPS: p.statusHTTPS.String(),
-		ErrorHTTP:   p.errorHTTP,
-		ErrorHTTPS:  p.errorHTTPS,
+func loadClientCerts(certs []string) (c []tls.Certificate, err error) {
+	for _, certName := range certs {
+		certPEM, err := ioutil.ReadFile(certName)
+		if err != nil {
+			return nil, fmt.Errorf("load cert %s error: %s", certName, err)
+		}
+		block, _ := pem.Decode([]byte(certPEM))
+		if block == nil {
+			return nil, fmt.Errorf("decode cert %s error", certName)
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("parse cert %s error: %s", certName, err)
+		}
+		c = append(c, tls.Certificate{Leaf: cert})
 	}
+	return
+}
+
+func prepareNetworks(addrs string) (networks []*net.IPNet) {
+	for _, n := range strings.Fields(addrs) {
+		n = strings.TrimSpace(n)
+		if strings.Contains(n, "/") {
+			if _, network, err := net.ParseCIDR(n); err == nil {
+				networks = append(networks, network)
+			} else {
+				logServer.With("err", err).
+					With("net", n).
+					Warn("Proxy: prepare networks error")
+			}
+		} else {
+			if ip := net.ParseIP(n); ip != nil {
+				var mask net.IPMask
+				if len(ip) == 4 { // ipv4
+					mask = net.CIDRMask(32, 32)
+				} else {
+					mask = net.CIDRMask(128, 128)
+				}
+				network := &net.IPNet{ip, mask}
+				networks = append(networks, network)
+			} else {
+				logServer.With("net", n).
+					Warn("Proxy: prepare ip error")
+			}
+		}
+	}
+	logServer.With("networks", networks).
+		With("inp", addrs).
+		Debug("Proxy: prepareNetworks done")
+	return
+}
+
+func acceptAddress(networks []*net.IPNet, addr string) bool {
+	// cut off port
+	portPos := strings.LastIndex(addr, ":")
+	if portPos > -1 {
+		addr = addr[:portPos]
+	}
+	a := net.ParseIP(addr)
+	if a == nil {
+		logServer.With("addr", addr).Warn("Proxy: acceptAddress parse error")
+		return false
+	}
+	for _, n := range networks {
+		if n.Contains(a) {
+			return true
+		}
+	}
+	return false
 }
