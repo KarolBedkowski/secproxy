@@ -6,7 +6,6 @@ import (
 	"k.prv/secproxy/logging"
 	"k.prv/secproxy/proxy"
 	"net/http"
-	"strings"
 )
 
 var logEP = logging.NewLogger("admin.auth")
@@ -160,10 +159,10 @@ func endpointActionPageHandler(w http.ResponseWriter, r *http.Request, bctx *Bas
 
 	switch action {
 	case "start":
-		if err := proxy.StartEndpoint(epname, bctx.Globals); len(err) == 0 {
+		if err := proxy.StartEndpoint(epname, bctx.Globals); err == nil {
 			bctx.AddFlashMessage("Endpoint started", "success")
 		} else {
-			bctx.AddFlashMessage("Endpoint failed to start: "+strings.Join(err, ", "), "error")
+			bctx.AddFlashMessage("Endpoint failed to start: "+err.Error(), "error")
 		}
 		break
 	case "stop":

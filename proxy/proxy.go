@@ -60,156 +60,189 @@ func init() {
 	prometheus.MustRegister(metricReqDur)
 }
 
-func StartEndpoint(name string, globals *config.Globals) (errstr []string) {
+func StartEndpoint(name string, globals *config.Globals) error {
 	llog := logServer.With("endpoint", name)
 	llog.Info("Proxy: starting endpoint")
 
 	conf := globals.GetEndpoint(name)
 	if conf == nil {
-		return []string{"invalid endpoint"}
-	}
-	uri, err := url.Parse(conf.Destination)
-	if err != nil {
-		return []string{"invalid url"}
+		return fmt.Errorf("invalid endpoint")
 	}
 
 	if statusHTTP, statusHTTPS := endpoints.status(name); !statusHTTPS.canStart() || !statusHTTP.canStart() {
 		llog.Info("Proxy: endpoint can't start; statuses: %s, %s", statusHTTP, statusHTTPS)
-		return []string{"already running"}
+		return fmt.Errorf("already running")
 	}
 
-	st := endpoints.addEndpoint(name)
+	pe := &proxyEndpoint{
+		conf:    conf,
+		globals: globals,
+		name:    name,
+		llog:    llog,
+		st:      endpoints.addEndpoint(name),
+	}
 
-	var handler http.Handler
+	handler, err := pe.createHandler()
+	if err != nil {
+		return err
+	}
 
-	revproxy := httputil.NewSingleHostReverseProxy(uri)
-	revproxy.ErrorLog = proxyLogger
-	handler = http.Handler(revproxy)
-	handler = authenticationMW(handler, name, globals)
-	handler = common.LogHandler(handler, "server:", map[string]interface{}{"endpoint": name, "module": "server"})
-	// TODO: stats handler
-	handler = metricsMW(handler, name, globals)
-
+	var errHTTP, errHTTPS error
 	if conf.HTTPAddress != "" {
-		llog.Info("Proxy: starting HTTP on %v", conf.HTTPAddress)
-		s := &http.Server{
-			Addr:         conf.HTTPAddress,
-			Handler:      handler,
-			ReadTimeout:  10 * time.Second,
-			WriteTimeout: 10 * time.Second,
-		}
-		ls, e := net.Listen("tcp", conf.HTTPAddress)
-		if e != nil {
-			llog.With("err", e).
-				Info("Proxy: start HTTP server error")
-			errstr = append(errstr, "starting http error "+e.Error())
-			endpoints.setStatus(name, EndpointError, e.Error())
-		} else {
-			go func() {
-				stopChain := st.serverHTTPClose
-				go s.Serve(ls)
-				endpoints.setStatus(name, EndpointStarted, "")
-				select {
-				case <-stopChain:
-					llog.Info("Proxy: stopping http")
-					ls.Close()
-					endpoints.setStatus(name, EndpointStopped, "")
-					return
-				}
-			}()
+		if errHTTP = pe.startEndpointHTTP(handler); errHTTP != nil {
+			llog.With("err", errHTTP).Info("Proxy: start HTTP server error")
+			endpoints.setStatusHTTP(name, EndpointError, errHTTP.Error())
 		}
 	} else {
-		endpoints.setStatus(name, EndpointStopped, "")
+		endpoints.setStatusHTTP(name, EndpointStopped, "")
 	}
 
 	if conf.HTTPSAddress != "" {
-		llog.Info("Proxy: starting HTTPS on %s", conf.HTTPSAddress)
-		s := &http.Server{
-			Addr:         conf.HTTPSAddress,
-			Handler:      handler,
-			ReadTimeout:  10 * time.Second,
-			WriteTimeout: 10 * time.Second,
-		}
-		tlsConfig := &tls.Config{
-			RootCAs:                  globals.TLSRootsCAs,
-			ClientCAs:                globals.TLSRootsCAs,
-			PreferServerCipherSuites: true,
-		}
-		if tlsConfig.NextProtos == nil {
-			tlsConfig.NextProtos = []string{"http/1.1"}
-		}
-
-		if cert, err := tls.LoadX509KeyPair(conf.SslCert, conf.SslKey); err != nil {
-			llog.With("err", err).Info("Proxy: starting HTTPS cert error")
-			errstr = append(errstr, "starting https - cert error "+err.Error())
-			endpoints.setStatusHTTPS(name, EndpointError, err.Error())
-		} else {
-			tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
-		}
-
-		if len(conf.ClientCertificates) > 0 {
-			for _, certName := range conf.ClientCertificates {
-				clog := llog.With("certname", certName)
-				certPEM, err := ioutil.ReadFile(certName)
-				if err != nil {
-					clog.With("err", err).Info("Proxy: load cert error")
-					continue
-				}
-				block, _ := pem.Decode([]byte(certPEM))
-				if block == nil {
-					clog.Info("Proxy: decode cert error")
-					continue
-				}
-				cert, err := x509.ParseCertificate(block.Bytes)
-				if err != nil {
-					clog.With("err", err).Info("Proxy: decode cert error")
-					continue
-				}
-				tlsConfig.Certificates = append(tlsConfig.Certificates, tls.Certificate{Leaf: cert})
-				clog.Debug("loaded cert: cn=%s ", cert.Subject.CommonName)
-			}
-			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
-			tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-				for _, cg := range verifiedChains {
-					for _, cert := range cg {
-						for _, ccert := range tlsConfig.Certificates {
-							c := ccert.Leaf
-							if c != nil && cert.Equal(c) {
-								llog.Debug("Proxy: found cert cn=%s", cert.Subject.CommonName)
-								return nil
-							}
-						}
-					}
-				}
-				return fmt.Errorf("unknown client certificate")
-			}
-		}
-
-		if ln, err := net.Listen("tcp", conf.HTTPSAddress); err != nil {
-			llog.With("err", err).
-				Error("Proxy: start HTTPS listen error")
-			errstr = append(errstr, "starting https error "+err.Error())
-			endpoints.setStatusHTTPS(name, EndpointError, err.Error())
-		} else {
-			tlsListener := tls.NewListener(ln, tlsConfig)
-			go func() {
-				stopChain := st.serverHTTPSClose
-				go s.Serve(tlsListener)
-				endpoints.setStatusHTTPS(name, EndpointStarted, "")
-				select {
-				case <-stopChain:
-					llog.Info("Proxy: stopping HTTPS")
-					ln.Close()
-					endpoints.setStatusHTTPS(name, EndpointStopped, "")
-					return
-				}
-			}()
+		if errHTTPS = pe.startEndpointHTTPS(handler); errHTTPS != nil {
+			llog.With("err", errHTTPS).Info("Proxy: start HTTPS server error")
+			endpoints.setStatusHTTPS(name, EndpointError, errHTTPS.Error())
 		}
 	} else {
 		endpoints.setStatusHTTPS(name, EndpointStopped, "")
 	}
 
-	return
+	if errHTTP != nil {
+		if errHTTPS != nil {
+			return fmt.Errorf("HTTP: %s; HTTPS: %s", errHTTP, errHTTPS)
+		}
+		return fmt.Errorf("HTTP: %s", errHTTP)
+	} else if errHTTPS != nil {
+		return fmt.Errorf("HTTPS: %s", errHTTPS)
+	}
+
+	return nil
+}
+
+type proxyEndpoint struct {
+	conf    *config.EndpointConf
+	globals *config.Globals
+	name    string
+	llog    logging.Logger
+	st      *endpointState
+}
+
+func (p *proxyEndpoint) createHandler() (http.Handler, error) {
+	uri, err := url.Parse(p.conf.Destination)
+	if err != nil {
+		return nil, fmt.Errorf("invalid url: %v", p.conf.Destination)
+	}
+
+	var handler http.Handler
+	revproxy := httputil.NewSingleHostReverseProxy(uri)
+	revproxy.ErrorLog = proxyLogger
+	handler = http.Handler(revproxy)
+	handler = authenticationMW(handler, p.name, p.globals)
+	handler = common.LogHandler(handler, "server:", map[string]interface{}{"endpoint": p.name, "module": "server"})
+	// TODO: stats handler
+	handler = metricsMW(handler, p.name, p.globals)
+	return handler, nil
+}
+
+func (p *proxyEndpoint) startEndpointHTTP(handler http.Handler) error {
+	s := &http.Server{
+		Addr:         p.conf.HTTPAddress,
+		Handler:      handler,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+	p.llog.Info("Proxy: starting HTTP on %v", s.Addr)
+	ls, e := net.Listen("tcp", p.conf.HTTPAddress)
+	if e != nil {
+		return e
+	} else {
+		go func() {
+			stopChain := p.st.serverHTTPClose
+			go s.Serve(ls)
+			endpoints.setStatusHTTP(p.name, EndpointStarted, "")
+			select {
+			case <-stopChain:
+				ls.Close()
+				p.llog.Info("Proxy: stopping HTTP on %v", s.Addr)
+				endpoints.setStatusHTTP(p.name, EndpointStopped, "")
+				return
+			}
+		}()
+	}
+	return nil
+}
+
+func (p *proxyEndpoint) prepareTLS() (*tls.Config, error) {
+	tlsConfig := &tls.Config{
+		RootCAs:                  p.globals.TLSRootsCAs,
+		ClientCAs:                p.globals.TLSRootsCAs,
+		PreferServerCipherSuites: true,
+	}
+	if tlsConfig.NextProtos == nil {
+		tlsConfig.NextProtos = []string{"http/1.1"}
+	}
+
+	if cert, err := tls.LoadX509KeyPair(p.conf.SslCert, p.conf.SslKey); err != nil {
+		return nil, fmt.Errorf("cert error: %s ", err)
+	} else {
+		tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
+	}
+
+	if len(p.conf.ClientCertificates) > 0 {
+		if certs, err := loadClientCerts(p.conf.ClientCertificates); err != nil {
+			return nil, err
+		} else {
+			tlsConfig.Certificates = append(tlsConfig.Certificates, certs...)
+		}
+		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+		tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			for _, cg := range verifiedChains {
+				for _, cert := range cg {
+					for _, ccert := range tlsConfig.Certificates {
+						c := ccert.Leaf
+						if c != nil && cert.Equal(c) {
+							return nil
+						}
+					}
+				}
+			}
+			return fmt.Errorf("unknown client certificate")
+		}
+	}
+	return tlsConfig, nil
+}
+
+func (p *proxyEndpoint) startEndpointHTTPS(handler http.Handler) error {
+	tlsConfig, err := p.prepareTLS()
+	if err != nil {
+		return fmt.Errorf("prepare tls error: %s", err)
+	}
+
+	if ln, err := net.Listen("tcp", p.conf.HTTPSAddress); err != nil {
+		endpoints.setStatusHTTPS(p.name, EndpointError, err.Error())
+		return fmt.Errorf("starting https error: %s ", err)
+	} else {
+		tlsListener := tls.NewListener(ln, tlsConfig)
+		s := &http.Server{
+			Addr:         p.conf.HTTPSAddress,
+			Handler:      handler,
+			ReadTimeout:  10 * time.Second,
+			WriteTimeout: 10 * time.Second,
+		}
+		p.llog.Info("Proxy: starting HTTPS on %s", s.Addr)
+		go func() {
+			stopChain := p.st.serverHTTPSClose
+			go s.Serve(tlsListener)
+			endpoints.setStatusHTTPS(p.name, EndpointStarted, "")
+			select {
+			case <-stopChain:
+				ln.Close()
+				p.llog.Info("Proxy: stopping HTTPS on %v", s.Addr)
+				endpoints.setStatusHTTPS(p.name, EndpointStopped, "")
+				return
+			}
+		}()
+	}
+	return nil
 }
 
 func StopEndpoint(name string) {
@@ -389,4 +422,23 @@ func metricsMW(h http.Handler, endpoint string, globals *config.Globals) http.Ha
 
 		h.ServeHTTP(writer, r)
 	})
+}
+
+func loadClientCerts(certs []string) (c []tls.Certificate, err error) {
+	for _, certName := range certs {
+		certPEM, err := ioutil.ReadFile(certName)
+		if err != nil {
+			return nil, fmt.Errorf("load cert %s error: %s", certName, err)
+		}
+		block, _ := pem.Decode([]byte(certPEM))
+		if block == nil {
+			return nil, fmt.Errorf("decode cert %s error", certName)
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("parse cert %s error: %s", certName, err)
+		}
+		c = append(c, tls.Certificate{Leaf: cert})
+	}
+	return
 }

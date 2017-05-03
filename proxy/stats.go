@@ -102,7 +102,7 @@ func (e *endpointsInfo) getState(endpoint string) (*endpointState, bool) {
 	return st, ok
 }
 
-func (e *endpointsInfo) setStatus(endpoint string, status EndpointStatus, err string) {
+func (e *endpointsInfo) setStatusHTTP(endpoint string, status EndpointStatus, err string) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 
