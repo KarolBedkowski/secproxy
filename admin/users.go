@@ -27,7 +27,7 @@ func usersPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 
 type (
 	userForm struct {
-		*config.User
+		config.User
 		NewPassword  string
 		NewPasswordC string
 		Errors       map[string]string `schema:"-"`
@@ -59,39 +59,28 @@ func userPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 	}
 
 	vars := mux.Vars(r)
-	login, ok := vars["login"]
-	newUser := !ok || login == ""
-	log := logUsers.WithRequest(r).With("user", bctx.UserLogin()).With("login", login)
-
-	if !newUser {
-		if user := bctx.Globals.GetUser(login); user != nil {
-			ctx.Form.User = user.Clone()
-		} else {
-			log.Error("admin.userPageHandler user %s not found", login)
-			http.Error(w, "User not found", http.StatusNotFound)
-			return
-		}
-	} else {
-		ctx.Form.User = &config.User{}
+	login := ""
+	if l, ok := vars["login"]; ok {
+		login = l
 	}
+	log := logUsers.WithRequest(r).With("user", bctx.UserLogin()).With("login", login)
 
 	switch r.Method {
 	case "POST":
 		r.ParseForm()
-		ctx.Form.User.Active = false // post not send unchecked checkboxes
 		if err := decoder.Decode(&ctx.Form, r.Form); err != nil {
 			log.With("err", err).
 				Info("User edit: decode form error; form=%+v", r.Form)
 			break
 		}
 
-		if !newUser && ctx.Form.User.Login != login {
+		if login != "" && ctx.Form.User.Login != login {
 			log.Info("User edit: login != form.login")
 			http.Error(w, "Wrong/changed login", http.StatusBadRequest)
 			return
 		}
 
-		if errors := ctx.Form.Validate(bctx.Globals, newUser); len(errors) > 0 {
+		if errors := ctx.Form.Validate(bctx.Globals, login == ""); len(errors) > 0 {
 			ctx.Form.Errors = errors
 			break
 		}
@@ -105,12 +94,22 @@ func userPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 			ctx.Form.User.Active = true
 		}
 
-		bctx.Globals.SaveUser(ctx.Form.User)
+		bctx.Globals.SaveUser(&ctx.Form.User)
 		ctx.AddFlashMessage("User saved", "success")
 		ctx.Save()
 		log.Info("User edit: user saved")
 		http.Redirect(w, r, "/users/", http.StatusFound)
 		return
+	case "GET":
+		if login != "" {
+			if user := bctx.Globals.GetUser(login); user != nil {
+				ctx.Form.User = *user
+			} else {
+				log.Error("admin.userPageHandler user %s not found", login)
+				http.Error(w, "User not found", http.StatusNotFound)
+				return
+			}
+		}
 	}
 	ctx.Save()
 	RenderTemplateStd(w, ctx, "users/user.tmpl")

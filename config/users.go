@@ -41,6 +41,13 @@ func (u *User) UpdatePassword(newPass string) {
 }
 
 func (u *User) Validate() (errors map[string]string) {
+	errors = make(map[string]string)
+	if u.Name == "" {
+		errors["Name"] = "missing value"
+	}
+	if u.Role == "" {
+		errors["Role"] = "missing role"
+	}
 	return
 }
 
