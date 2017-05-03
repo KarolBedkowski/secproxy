@@ -4,7 +4,7 @@
 {{ define "body" }}
 <h2>Users</h2>
 
- <a href="/users/<new>" class="uk-button"><i class="uk-icon-plus"></i> Create</a>
+ <a href="/users/user/" class="uk-button"><i class="uk-icon-plus"></i> Create</a>
 
 <table class="uk-table uk-table-hover uk-table-striped uk-table-condensed">
 	<thead>
@@ -21,7 +21,7 @@
 			<td>{{.Login}}</td>
 			<td>{{.Name}}</td>
 			<td>{{.Role}}</td>
-			<td><a href="/users/{{.Login}}">Edit</a></td>
+			<td><a href="/users/user/{{.Login}}">Edit</a></td>
 		</tr>
 		{{end}}
 	</tbody>

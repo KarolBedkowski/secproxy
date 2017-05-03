@@ -12,7 +12,8 @@ var logUsers = logging.NewLogger("admin.users")
 // Init - Initialize application
 func InitUsersHandlers(globals *config.Globals, parentRotuer *mux.Route) {
 	router := parentRotuer.Subrouter()
-	router.HandleFunc("/{login}", SecurityContextHandler(userPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/user/{login}", SecurityContextHandler(userPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/user/", SecurityContextHandler(userPageHandler, globals, "ADMIN"))
 	router.HandleFunc("/", SecurityContextHandler(usersPageHandler, globals, "ADMIN"))
 }
 
@@ -30,7 +31,6 @@ type (
 		NewPassword  string
 		NewPasswordC string
 		Errors       map[string]string `schema:"-"`
-		Method       string            `schema:"_method"`
 	}
 )
 
@@ -49,8 +49,6 @@ func (f userForm) Validate(globals *config.Globals, newUser bool) (errors map[st
 }
 
 func userPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
-	log := logUsers.WithRequest(r).With("user", bctx.UserLogin())
-	vars := mux.Vars(r)
 	ctx := &struct {
 		*BasePageContext
 		Form     userForm
@@ -59,17 +57,11 @@ func userPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 		BasePageContext: bctx,
 		AllRoles:        []string{"ADMIN", "USER"},
 	}
-	if r.Method == "POST" && r.FormValue("_method") != "" {
-		r.Method = r.FormValue("_method")
-	}
-	login, ok := vars["login"]
-	if !ok || login == "" {
-		log.Debug("User edit: missing login; vars=%+v", vars)
-		http.Error(w, "Missing login", http.StatusBadRequest)
-		return
-	}
 
-	newUser := login == "<new>"
+	vars := mux.Vars(r)
+	login, ok := vars["login"]
+	newUser := !ok || login == ""
+	log := logUsers.WithRequest(r).With("user", bctx.UserLogin()).With("login", login)
 
 	if !newUser {
 		if user := bctx.Globals.GetUser(login); user != nil {
@@ -82,32 +74,37 @@ func userPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 	} else {
 		ctx.Form.User = &config.User{}
 	}
+
 	switch r.Method {
 	case "POST":
 		r.ParseForm()
-		var currLogin = ctx.Form.User.Login
 		ctx.Form.User.Active = false // post not send unchecked checkboxes
 		if err := decoder.Decode(&ctx.Form, r.Form); err != nil {
 			log.With("err", err).
 				Info("User edit: decode form error; form=%+v", r.Form)
 			break
 		}
+
 		if !newUser && ctx.Form.User.Login != login {
 			log.Info("User edit: login != form.login")
 			http.Error(w, "Wrong/changed login", http.StatusBadRequest)
 			return
 		}
-		if !newUser && ctx.Form.User.Login != currLogin {
-			log.Info("User edit: login changed - reverting")
-			ctx.Form.User.Login = currLogin
-		}
+
 		if errors := ctx.Form.Validate(bctx.Globals, newUser); len(errors) > 0 {
 			ctx.Form.Errors = errors
 			break
 		}
+
 		if ctx.Form.NewPassword != "" {
 			ctx.Form.User.UpdatePassword(ctx.Form.NewPassword)
 		}
+
+		if ctx.Form.User.Login == "admin" {
+			// can't disable admin account
+			ctx.Form.User.Active = true
+		}
+
 		bctx.Globals.SaveUser(ctx.Form.User)
 		ctx.AddFlashMessage("User saved", "success")
 		ctx.Save()
@@ -168,14 +165,10 @@ func chpassPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCon
 			ctx.Form.Errors["CurrentPass"] = "Wrong password"
 			break
 		}
+
 		if ctx.Form.NewPasswordC != ctx.Form.NewPassword {
 			ctx.Form.Errors["NewPassword"] = "Passwords not match"
 			break
-		}
-
-		if user.Login == "admin" {
-			// can't disable admin account
-			user.Active = true
 		}
 
 		user.UpdatePassword(ctx.Form.NewPassword)
@@ -186,6 +179,7 @@ func chpassPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCon
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
+
 	ctx.Save()
 	RenderTemplateStd(w, ctx, "users/chpass.tmpl")
 }
