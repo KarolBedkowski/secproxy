@@ -86,8 +86,8 @@ type proxyEndpoint struct {
 	errorHTTP   string
 	errorHTTPS  string
 
-	serverHTTPClose  chan bool
-	serverHTTPSClose chan bool
+	httpListener  net.Listener
+	httpsListener net.Listener
 
 	// counters
 	statusFail uint32
@@ -106,9 +106,6 @@ func newProxyEndpoint(c config.EndpointConf, g *config.Globals) *proxyEndpoint {
 
 		statusHTTP:  EndpointStopped,
 		statusHTTPS: EndpointStopped,
-
-		serverHTTPClose:  make(chan bool),
-		serverHTTPSClose: make(chan bool),
 	}
 }
 
@@ -202,19 +199,19 @@ func (p *proxyEndpoint) Stop() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.statusHTTP == EndpointStarted {
-		p.llog.Debug("Proxy: stopping http")
-		p.serverHTTPClose <- true
-	} else {
-		p.statusHTTP = EndpointStopped
+	if p.statusHTTP == EndpointStarted && p.httpListener != nil {
+		p.llog.Info("Proxy: stopping HTTP")
+		p.httpListener.Close()
+		p.httpListener = nil
 	}
+	p.statusHTTP = EndpointStopped
 
-	if p.statusHTTPS == EndpointStarted {
-		p.llog.Debug("Proxy: stopping https")
-		p.serverHTTPSClose <- true
-	} else {
-		p.statusHTTPS = EndpointStopped
+	if p.statusHTTPS == EndpointStarted && p.httpsListener != nil {
+		p.llog.Debug("Proxy: stopping HTTPS")
+		p.httpsListener.Close()
+		p.httpsListener = nil
 	}
+	p.statusHTTPS = EndpointStopped
 
 	return nil
 }
@@ -238,29 +235,27 @@ func (p *proxyEndpoint) createHandler() (http.Handler, error) {
 func (p *proxyEndpoint) startEndpointHTTP(handler http.Handler) error {
 	p.llog.Info("Proxy: starting HTTP on %v", p.conf.HTTPAddress)
 
-	ls, err := net.Listen("tcp", p.conf.HTTPAddress)
+	if p.httpListener != nil {
+		p.llog.Warn("httpListener already exists; closing")
+		p.httpListener.Close()
+		p.httpListener = nil
+	}
+
+	var err error
+	p.httpListener, err = net.Listen("tcp", p.conf.HTTPAddress)
 	if err != nil {
 		return err
 	}
 
-	go func() {
-		stopChain := p.serverHTTPClose
-		s := &http.Server{
-			Addr:         p.conf.HTTPAddress,
-			Handler:      handler,
-			ReadTimeout:  10 * time.Second,
-			WriteTimeout: 10 * time.Second,
-		}
-		go s.Serve(ls)
-		p.statusHTTP = EndpointStarted
-		select {
-		case <-stopChain:
-			ls.Close()
-			p.llog.Info("Proxy: stopping HTTP on %v", s.Addr)
-			p.statusHTTP = EndpointStopped
-			return
-		}
-	}()
+	s := &http.Server{
+		Addr:         p.conf.HTTPAddress,
+		Handler:      handler,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+
+	go s.Serve(p.httpListener)
+	p.statusHTTP = EndpointStarted
 
 	return nil
 }
@@ -310,38 +305,33 @@ func (p *proxyEndpoint) prepareTLS() (*tls.Config, error) {
 func (p *proxyEndpoint) startEndpointHTTPS(handler http.Handler) error {
 	p.llog.Info("Proxy: starting HTTPS on %s", p.conf.HTTPSAddress)
 
+	if p.httpsListener != nil {
+		p.llog.Warn("httpsListener already exists; closing")
+		p.httpsListener.Close()
+		p.httpsListener = nil
+	}
+
 	tlsConfig, err := p.prepareTLS()
 	if err != nil {
 		return fmt.Errorf("prepare tls error: %s", err)
 	}
 
-	ln, err := net.Listen("tcp", p.conf.HTTPSAddress)
+	p.httpsListener, err = net.Listen("tcp", p.conf.HTTPSAddress)
 	if err != nil {
 		p.statusHTTPS = EndpointError
 		p.errorHTTPS = err.Error()
 		return fmt.Errorf("starting https error: %s ", err)
 	}
 
-	go func() {
-		s := &http.Server{
-			Addr:         p.conf.HTTPSAddress,
-			Handler:      handler,
-			ReadTimeout:  10 * time.Second,
-			WriteTimeout: 10 * time.Second,
-		}
+	s := &http.Server{
+		Addr:         p.conf.HTTPSAddress,
+		Handler:      handler,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
 
-		stopChain := p.serverHTTPSClose
-		go s.Serve(tls.NewListener(ln, tlsConfig))
-		p.statusHTTPS = EndpointStarted
-		select {
-		case <-stopChain:
-			ln.Close()
-			p.llog.Info("Proxy: stopping HTTPS on %v", s.Addr)
-			p.statusHTTPS = EndpointStopped
-			return
-		}
-	}()
-
+	go s.Serve(tls.NewListener(p.httpsListener, tlsConfig))
+	p.statusHTTPS = EndpointStarted
 	return nil
 }
 
