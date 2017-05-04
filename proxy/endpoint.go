@@ -2,7 +2,6 @@
 // endpoint.go
 // Copyright (C) 2017 Karol Będkowski
 //
-//
 
 package proxy
 
@@ -21,6 +20,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -94,6 +94,8 @@ type proxyEndpoint struct {
 	statusOk   uint32
 	status401  uint32
 	status403  uint32
+
+	mu sync.RWMutex
 }
 
 func newProxyEndpoint(c config.EndpointConf, g *config.Globals) *proxyEndpoint {
@@ -111,6 +113,9 @@ func newProxyEndpoint(c config.EndpointConf, g *config.Globals) *proxyEndpoint {
 }
 
 func (p *proxyEndpoint) Update(c config.EndpointConf) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	p.conf = c
 }
 
@@ -123,6 +128,9 @@ func (e *proxyEndpoint) error() (string, string) {
 }
 
 func (p *proxyEndpoint) Info() *EndpointInfo {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
 	return &EndpointInfo{
 		Endpoint:    p.conf.Name,
 		Fail:        uint(p.statusFail),
@@ -138,35 +146,44 @@ func (p *proxyEndpoint) Info() *EndpointInfo {
 }
 
 func (p *proxyEndpoint) Start() error {
-	p.llog.Debug("start")
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.llog.Info("Proxy: starting endpoint %v", p.conf.Name)
+	p.errorHTTP = ""
+	p.errorHTTPS = ""
+
 	handler, err := p.createHandler()
 	if err != nil {
+		p.llog.Debug("ERROR: handler create error: %s", err)
 		return err
 	}
 
 	p.llog.Debug("handler created")
 
 	var errHTTP, errHTTPS error
-	if p.conf.HTTPAddress != "" {
+	if p.conf.HTTPAddress != "" && p.statusHTTP == EndpointStopped {
 		if errHTTP = p.startEndpointHTTP(handler); errHTTP != nil {
-			p.llog.With("err", errHTTP).Info("Proxy: start HTTP server error")
+			p.llog.With("err", errHTTP).Info("ERROR: Proxy: start HTTP server error")
 			p.statusHTTP = EndpointError
 			p.errorHTTP = errHTTP.Error()
+		} else {
+			p.llog.Info("Proxy: http endpoint %v started", p.conf.Name)
 		}
 	} else {
 		p.statusHTTP = EndpointStopped
-		p.errorHTTP = ""
 	}
 
-	if p.conf.HTTPSAddress != "" {
+	if p.conf.HTTPSAddress != "" && p.statusHTTPS == EndpointStopped {
 		if errHTTPS = p.startEndpointHTTPS(handler); errHTTPS != nil {
-			p.llog.With("err", errHTTPS).Info("Proxy: start HTTPS server error")
+			p.llog.With("err", errHTTPS).Info("ERROR: Proxy: start HTTPS server error")
 			p.statusHTTPS = EndpointError
 			p.errorHTTPS = errHTTPS.Error()
+		} else {
+			p.llog.Info("Proxy: https endpoint %v started", p.conf.Name)
 		}
 	} else {
 		p.statusHTTPS = EndpointStopped
-		p.errorHTTPS = ""
 	}
 
 	if errHTTP != nil {
@@ -182,14 +199,23 @@ func (p *proxyEndpoint) Start() error {
 }
 
 func (p *proxyEndpoint) Stop() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	if p.statusHTTP == EndpointStarted {
 		p.llog.Debug("Proxy: stopping http")
 		p.serverHTTPClose <- true
+	} else {
+		p.statusHTTP = EndpointStopped
 	}
+
 	if p.statusHTTPS == EndpointStarted {
 		p.llog.Debug("Proxy: stopping https")
 		p.serverHTTPSClose <- true
+	} else {
+		p.statusHTTPS = EndpointStopped
 	}
+
 	return nil
 }
 
@@ -210,32 +236,32 @@ func (p *proxyEndpoint) createHandler() (http.Handler, error) {
 }
 
 func (p *proxyEndpoint) startEndpointHTTP(handler http.Handler) error {
-	s := &http.Server{
-		Addr:         p.conf.HTTPAddress,
-		Handler:      handler,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+	p.llog.Info("Proxy: starting HTTP on %v", p.conf.HTTPAddress)
+
+	ls, err := net.Listen("tcp", p.conf.HTTPAddress)
+	if err != nil {
+		return err
 	}
-	p.llog.Info("Proxy: starting HTTP on %v", s.Addr)
-	ls, e := net.Listen("tcp", p.conf.HTTPAddress)
-	if e != nil {
-		return e
-	} else {
-		go func() {
-			stopChain := p.serverHTTPClose
-			go s.Serve(ls)
-			p.statusHTTP = EndpointStarted
-			p.errorHTTP = ""
-			select {
-			case <-stopChain:
-				ls.Close()
-				p.llog.Info("Proxy: stopping HTTP on %v", s.Addr)
-				p.statusHTTP = EndpointStopped
-				p.errorHTTP = ""
-				return
-			}
-		}()
-	}
+
+	go func() {
+		stopChain := p.serverHTTPClose
+		s := &http.Server{
+			Addr:         p.conf.HTTPAddress,
+			Handler:      handler,
+			ReadTimeout:  10 * time.Second,
+			WriteTimeout: 10 * time.Second,
+		}
+		go s.Serve(ls)
+		p.statusHTTP = EndpointStarted
+		select {
+		case <-stopChain:
+			ls.Close()
+			p.llog.Info("Proxy: stopping HTTP on %v", s.Addr)
+			p.statusHTTP = EndpointStopped
+			return
+		}
+	}()
+
 	return nil
 }
 
@@ -250,7 +276,7 @@ func (p *proxyEndpoint) prepareTLS() (*tls.Config, error) {
 	}
 
 	if cert, err := tls.LoadX509KeyPair(p.conf.SslCert, p.conf.SslKey); err != nil {
-		return nil, fmt.Errorf("cert error: %s ", err)
+		return nil, err
 	} else {
 		tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
 	}
@@ -262,6 +288,8 @@ func (p *proxyEndpoint) prepareTLS() (*tls.Config, error) {
 			tlsConfig.Certificates = append(tlsConfig.Certificates, certs...)
 		}
 		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+
+		// client certificates verification function
 		tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 			for _, cg := range verifiedChains {
 				for _, cert := range cg {
@@ -280,39 +308,40 @@ func (p *proxyEndpoint) prepareTLS() (*tls.Config, error) {
 }
 
 func (p *proxyEndpoint) startEndpointHTTPS(handler http.Handler) error {
+	p.llog.Info("Proxy: starting HTTPS on %s", p.conf.HTTPSAddress)
+
 	tlsConfig, err := p.prepareTLS()
 	if err != nil {
 		return fmt.Errorf("prepare tls error: %s", err)
 	}
 
-	if ln, err := net.Listen("tcp", p.conf.HTTPSAddress); err != nil {
+	ln, err := net.Listen("tcp", p.conf.HTTPSAddress)
+	if err != nil {
 		p.statusHTTPS = EndpointError
 		p.errorHTTPS = err.Error()
 		return fmt.Errorf("starting https error: %s ", err)
-	} else {
-		tlsListener := tls.NewListener(ln, tlsConfig)
+	}
+
+	go func() {
 		s := &http.Server{
 			Addr:         p.conf.HTTPSAddress,
 			Handler:      handler,
 			ReadTimeout:  10 * time.Second,
 			WriteTimeout: 10 * time.Second,
 		}
-		p.llog.Info("Proxy: starting HTTPS on %s", s.Addr)
-		go func() {
-			stopChain := p.serverHTTPSClose
-			go s.Serve(tlsListener)
-			p.statusHTTPS = EndpointStarted
-			p.errorHTTPS = ""
-			select {
-			case <-stopChain:
-				ln.Close()
-				p.llog.Info("Proxy: stopping HTTPS on %v", s.Addr)
-				p.statusHTTPS = EndpointStopped
-				p.errorHTTPS = ""
-				return
-			}
-		}()
-	}
+
+		stopChain := p.serverHTTPSClose
+		go s.Serve(tls.NewListener(ln, tlsConfig))
+		p.statusHTTPS = EndpointStarted
+		select {
+		case <-stopChain:
+			ln.Close()
+			p.llog.Info("Proxy: stopping HTTPS on %v", s.Addr)
+			p.statusHTTPS = EndpointStopped
+			return
+		}
+	}()
+
 	return nil
 }
 
@@ -324,27 +353,31 @@ func (p *proxyEndpoint) authenticationMW(h http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		l := p.llog.WithRequest(r)
-		if networks != nil {
-			if !acceptAddress(networks, r.RemoteAddr) {
-				l.Info("Proxy: request forbidden by network restrictions")
-				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-				return
-			}
+		// network verification
+		if networks != nil && !acceptAddress(networks, r.RemoteAddr) {
+			l.Info("Proxy: request forbidden by network restrictions")
+			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+			return
 		}
 
+		// no user verification
 		if len(p.conf.Users) == 0 {
 			h.ServeHTTP(w, r)
 			return
 		}
+
+		// get authenticated user
 		usr, pass, _ := r.BasicAuth()
 		if usr == "" && r.URL != nil && r.URL.User != nil {
 			usr = r.URL.User.Username()
 			pass, _ = r.URL.User.Password()
 		}
 
+		// check authenticated user
 		if usr != "" {
 			user := p.globals.GetUser(usr)
 			if user.Active && p.conf.AcceptUser(user.Login) && user.CheckPassword(pass) {
+				// user ok
 				l.With("user", user.Login).Info("Proxy: request accepted for user")
 				r.Header.Set("X-Authenticated-User", usr)
 				h.ServeHTTP(w, r)
@@ -352,6 +385,7 @@ func (p *proxyEndpoint) authenticationMW(h http.Handler) http.Handler {
 			}
 		}
 
+		// user need authentication
 		w.Header().Set("WWW-Authenticate", "Basic realm=\"SecProxy\"")
 		l.With("status", 401).Info("Proxy: user unauthorized; need login")
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
@@ -388,6 +422,7 @@ func (p *proxyEndpoint) metricsMW(h http.Handler) http.Handler {
 		h.ServeHTTP(writer, r)
 	})
 }
+
 func groupStatusCode(code int) string {
 	switch {
 	case code >= 100 && code < 200:
@@ -410,14 +445,17 @@ func loadClientCerts(certs []string) (c []tls.Certificate, err error) {
 		if err != nil {
 			return nil, fmt.Errorf("load cert %s error: %s", certName, err)
 		}
+
 		block, _ := pem.Decode([]byte(certPEM))
 		if block == nil {
 			return nil, fmt.Errorf("decode cert %s error", certName)
 		}
+
 		cert, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
 			return nil, fmt.Errorf("parse cert %s error: %s", certName, err)
 		}
+
 		c = append(c, tls.Certificate{Leaf: cert})
 	}
 	return
@@ -450,8 +488,8 @@ func prepareNetworks(addrs string) (networks []*net.IPNet) {
 			}
 		}
 	}
-	logServer.With("networks", networks).
-		With("inp", addrs).
+
+	logServer.With("networks", networks).With("inp", addrs).
 		Debug("Proxy: prepareNetworks done")
 	return
 }
@@ -462,11 +500,13 @@ func acceptAddress(networks []*net.IPNet, addr string) bool {
 	if portPos > -1 {
 		addr = addr[:portPos]
 	}
+
 	a := net.ParseIP(addr)
 	if a == nil {
 		logServer.With("addr", addr).Warn("Proxy: acceptAddress parse error")
 		return false
 	}
+
 	for _, n := range networks {
 		if n.Contains(a) {
 			return true
