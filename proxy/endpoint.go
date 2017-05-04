@@ -25,11 +25,15 @@ import (
 	"time"
 )
 
+// EndpointStatus define current endpoint status
 type EndpointStatus int
 
 const (
+	// EndpointStopped - endpoint is not running (stopped)
 	EndpointStopped EndpointStatus = iota
+	// EndpointStarted - endpoint is active
 	EndpointStarted
+	// EndpointError - endpoint is not running because of some error
 	EndpointError
 )
 
@@ -49,6 +53,7 @@ func (s EndpointStatus) canStart() bool {
 	return s == EndpointStopped || s == EndpointError
 }
 
+// EndpointInfo represent endpoint status exported by Info
 type EndpointInfo struct {
 	Endpoint    string
 	Fail        uint
@@ -95,7 +100,9 @@ func newProxyEndpoint(c *config.EndpointConf, g *config.Globals) *proxyEndpoint 
 	}
 }
 
-func (p *proxyEndpoint) Update(c *config.EndpointConf) {
+// Update endpoint configuration.
+// Endpoint normally should be stopped
+func (p *proxyEndpoint) update(c *config.EndpointConf) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -106,11 +113,11 @@ func (p *proxyEndpoint) status() (EndpointStatus, EndpointStatus) {
 	return p.statusHTTP, p.statusHTTPS
 }
 
-func (e *proxyEndpoint) error() (string, string) {
-	return e.errorHTTP, e.errorHTTPS
+func (p *proxyEndpoint) error() (string, string) {
+	return p.errorHTTP, p.errorHTTPS
 }
 
-func (p *proxyEndpoint) Info() *EndpointInfo {
+func (p *proxyEndpoint) info() *EndpointInfo {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -128,13 +135,16 @@ func (p *proxyEndpoint) Info() *EndpointInfo {
 	}
 }
 
-func (p *proxyEndpoint) Start() error {
+// Start endpoint
+func (p *proxyEndpoint) start() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	p.llog.Info("Proxy: starting endpoint %v", p.conf.Name)
 	p.errorHTTP = ""
 	p.errorHTTPS = ""
+	p.statusHTTP = EndpointStopped
+	p.statusHTTPS = EndpointStopped
 
 	handler, err := p.createHandler()
 	if err != nil {
@@ -153,8 +163,6 @@ func (p *proxyEndpoint) Start() error {
 		} else {
 			p.llog.Info("Proxy: http endpoint %v started", p.conf.Name)
 		}
-	} else {
-		p.statusHTTP = EndpointStopped
 	}
 
 	if p.conf.HTTPSAddress != "" && p.statusHTTPS == EndpointStopped {
@@ -165,8 +173,6 @@ func (p *proxyEndpoint) Start() error {
 		} else {
 			p.llog.Info("Proxy: https endpoint %v started", p.conf.Name)
 		}
-	} else {
-		p.statusHTTPS = EndpointStopped
 	}
 
 	if errHTTP != nil {
@@ -181,7 +187,7 @@ func (p *proxyEndpoint) Start() error {
 	return nil
 }
 
-func (p *proxyEndpoint) Stop() error {
+func (p *proxyEndpoint) stop() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -208,12 +214,12 @@ func (p *proxyEndpoint) createHandler() (http.Handler, error) {
 		return nil, fmt.Errorf("invalid url: %v", p.conf.Destination)
 	}
 
-	var handler http.Handler
 	revproxy := httputil.NewSingleHostReverseProxy(uri)
 	revproxy.ErrorLog = proxyLogger
-	handler = http.Handler(revproxy)
+	handler := http.Handler(revproxy)
 	handler = p.authenticationMW(handler)
-	handler = common.LogHandler(handler, "Proxy:", map[string]interface{}{"endpoint": p.conf.Name})
+	handler = common.LogHandler(handler, "Proxy:",
+		map[string]interface{}{"endpoint": p.conf.Name})
 	handler = p.metricsMW(handler)
 	return handler, nil
 }
@@ -222,7 +228,7 @@ func (p *proxyEndpoint) startEndpointHTTP(handler http.Handler) error {
 	p.llog.Info("Proxy: starting HTTP on %v", p.conf.HTTPAddress)
 
 	if p.httpListener != nil {
-		p.llog.Warn("httpListener already exists; closing")
+		p.llog.Warn("httpListener already exists; closing before start")
 		p.httpListener.Close()
 		p.httpListener = nil
 	}
@@ -246,8 +252,25 @@ func (p *proxyEndpoint) startEndpointHTTP(handler http.Handler) error {
 	return nil
 }
 
-func (p *proxyEndpoint) prepareTLS() (*tls.Config, error) {
-	tlsConfig := &tls.Config{
+// tlsConfigWC is tlsConfigWC with certificate verification function
+type tlsConfigWC tls.Config
+
+func (t *tlsConfigWC) verifyCers(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+	for _, cg := range verifiedChains {
+		for _, cert := range cg {
+			for _, ccert := range t.Certificates {
+				c := ccert.Leaf
+				if c != nil && cert.Equal(c) {
+					return nil
+				}
+			}
+		}
+	}
+	return fmt.Errorf("unknown client certificate")
+}
+
+func (p *proxyEndpoint) prepareTLS() (*tlsConfigWC, error) {
+	tlsConfig := &tlsConfigWC{
 		RootCAs:                  p.globals.TLSRootsCAs,
 		ClientCAs:                p.globals.TLSRootsCAs,
 		PreferServerCipherSuites: true,
@@ -256,34 +279,23 @@ func (p *proxyEndpoint) prepareTLS() (*tls.Config, error) {
 		tlsConfig.NextProtos = []string{"http/1.1"}
 	}
 
-	if cert, err := tls.LoadX509KeyPair(p.conf.SslCert, p.conf.SslKey); err != nil {
+	cert, err := tls.LoadX509KeyPair(p.conf.SslCert, p.conf.SslKey)
+	if err != nil {
 		return nil, err
-	} else {
-		tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
 	}
 
-	if len(p.conf.ClientCertificates) > 0 {
-		if certs, err := loadClientCerts(p.conf.ClientCertificates); err != nil {
-			return nil, err
-		} else {
-			tlsConfig.Certificates = append(tlsConfig.Certificates, certs...)
-		}
-		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+	tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
 
-		// client certificates verification function
-		tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-			for _, cg := range verifiedChains {
-				for _, cert := range cg {
-					for _, ccert := range tlsConfig.Certificates {
-						c := ccert.Leaf
-						if c != nil && cert.Equal(c) {
-							return nil
-						}
-					}
-				}
-			}
-			return fmt.Errorf("unknown client certificate")
+	if len(p.conf.ClientCertificates) > 0 {
+		certs, err := loadClientCerts(p.conf.ClientCertificates)
+		if err != nil {
+			return nil, err
 		}
+
+		tlsConfig.Certificates = append(tlsConfig.Certificates, certs...)
+		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+		// client certificates verification function
+		tlsConfig.VerifyPeerCertificate = tlsConfig.verifyCers
 	}
 	return tlsConfig, nil
 }
@@ -316,7 +328,7 @@ func (p *proxyEndpoint) startEndpointHTTPS(handler http.Handler) error {
 		WriteTimeout: 10 * time.Second,
 	}
 
-	go s.Serve(tls.NewListener(p.httpsListener, tlsConfig))
+	go s.Serve(tls.NewListener(p.httpsListener, (*tls.Config)(tlsConfig)))
 	p.statusHTTPS = EndpointStarted
 	return nil
 }
@@ -372,10 +384,10 @@ func (p *proxyEndpoint) metricsMW(h http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
-
 		writer := &common.ResponseWriter{ResponseWriter: w, Status: 200}
 
 		defer func() {
+			// prometheus statistics
 			elapsed := float64(time.Since(now)) / float64(time.Second)
 			method := strings.ToLower(r.Method)
 			code := strconv.Itoa(writer.Status)
@@ -383,6 +395,8 @@ func (p *proxyEndpoint) metricsMW(h http.Handler) http.Handler {
 			port := r.URL.Port()
 			metricReqCnt.WithLabelValues(method, code, group, p.conf.Name, port).Inc()
 			metricReqDur.WithLabelValues(method, code, group, p.conf.Name, port).Observe(elapsed)
+
+			// internal statistics
 			switch {
 			case writer.Status == 401:
 				atomic.AddUint32(&p.status401, 1)
@@ -444,8 +458,7 @@ func prepareNetworks(addrs string) (networks []*net.IPNet) {
 			if _, network, err := net.ParseCIDR(n); err == nil {
 				networks = append(networks, network)
 			} else {
-				logServer.With("err", err).
-					With("net", n).
+				logServer.With("err", err).With("net", n).
 					Warn("Proxy: prepare networks error")
 			}
 		} else {
@@ -456,11 +469,10 @@ func prepareNetworks(addrs string) (networks []*net.IPNet) {
 				} else {
 					mask = net.CIDRMask(128, 128)
 				}
-				network := &net.IPNet{ip, mask}
+				network := &net.IPNet{IP: ip, Mask: mask}
 				networks = append(networks, network)
 			} else {
-				logServer.With("net", n).
-					Warn("Proxy: prepare ip error")
+				logServer.With("net", n).Warn("Proxy: prepare ip error")
 			}
 		}
 	}

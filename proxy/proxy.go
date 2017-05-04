@@ -36,7 +36,7 @@ func StartEndpoint(name string, globals *config.Globals) error {
 	endpoints.mu.Lock()
 	e, ok := endpoints.endpoints[name]
 	if ok {
-		e.Update(conf)
+		e.update(conf)
 	} else {
 		e = newProxyEndpoint(conf, globals)
 		endpoints.endpoints[name] = e
@@ -48,7 +48,7 @@ func StartEndpoint(name string, globals *config.Globals) error {
 		return fmt.Errorf("already running")
 	}
 
-	return e.Start()
+	return e.start()
 }
 
 // StopEndpoint by name
@@ -58,7 +58,7 @@ func StopEndpoint(name string) error {
 
 	e, ok := endpoints.endpoints[name]
 	if ok {
-		return e.Stop()
+		return e.stop()
 	}
 	return fmt.Errorf("unknown endpoint %v", name)
 }
@@ -76,6 +76,7 @@ func EndpointState(name string) (string, string, bool) {
 	return EndpointStopped.String(), EndpointStopped.String(), false
 }
 
+// EndpointErrors check endpoint (by name) for errors
 func EndpointErrors(name string) (string, string) {
 	endpoints.mu.Lock()
 	defer endpoints.mu.Unlock()
@@ -87,13 +88,14 @@ func EndpointErrors(name string) (string, string) {
 	return "", ""
 }
 
+// EndpointsInfo generate information about all endpoints
 func EndpointsInfo() []*EndpointInfo {
 	endpoints.mu.Lock()
 	defer endpoints.mu.Unlock()
 
 	var stats []*EndpointInfo
 	for _, e := range endpoints.endpoints {
-		stats = append(stats, e.Info())
+		stats = append(stats, e.info())
 	}
 
 	return stats

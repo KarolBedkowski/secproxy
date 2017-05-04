@@ -4,8 +4,10 @@
 //
 
 package proxy
-	
+
 import "github.com/prometheus/client_golang/prometheus"
+
+// Prometheus metric configuration
 
 var (
 	metricsLabels = []string{"method", "code", "code_group", "endpoint", "port"}
@@ -42,4 +44,3 @@ func init() {
 	prometheus.MustRegister(metricReqCnt)
 	prometheus.MustRegister(metricReqDur)
 }
-
