@@ -67,7 +67,9 @@ func main() {
 	log.Info("Autostarting endpoints...")
 	for _, ep := range globals.GetEndpoints() {
 		if ep.Autostart {
-			proxy.StartEndpoint(ep.Name, globals)
+			if err := proxy.StartEndpoint(ep.Name, globals); err != nil {
+				log.Warn("proxy start failed: %s", err)
+			}
 		}
 	}
 	log.Info("All endpoints started")

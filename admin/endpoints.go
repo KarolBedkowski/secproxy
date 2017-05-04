@@ -39,7 +39,7 @@ func endpointsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePage
 		BasePageContext: bctx,
 	}
 	for _, ep := range bctx.Globals.GetEndpoints() {
-		statusHTTP, statusHTTPS, running := proxy.EndpointRunning(ep.Name)
+		statusHTTP, statusHTTPS, running := proxy.EndpointState(ep.Name)
 		errorHTTP, errorHTTPS := proxy.EndpointErrors(ep.Name)
 		ctx.Endpoints = append(ctx.Endpoints,
 			&endpoint{

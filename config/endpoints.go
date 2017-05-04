@@ -56,8 +56,8 @@ func (e *EndpointConf) Validate() (errors map[string]string) {
 	return
 }
 
-func (e *EndpointConf) Clone() (ne *EndpointConf) {
-	return &EndpointConf{
+func (e *EndpointConf) Clone() *EndpointConf {
+	ne := &EndpointConf{
 		Name:         e.Name,
 		Description:  e.Description,
 		HTTPAddress:  e.HTTPAddress,
@@ -67,9 +67,19 @@ func (e *EndpointConf) Clone() (ne *EndpointConf) {
 		Destination:  e.Destination,
 		Autostart:    e.Autostart,
 
-		Users:              e.Users,
-		ClientCertificates: e.ClientCertificates,
+		Users:              make([]string, len(e.Users)),
+		ClientCertificates: make([]string, len(e.ClientCertificates)),
 
 		AcceptAddr: e.AcceptAddr,
 	}
+
+	for i, u := range e.Users {
+		ne.Users[i] = u
+	}
+
+	for i, c := range e.ClientCertificates {
+		ne.ClientCertificates[i] = c
+	}
+
+	return ne
 }
