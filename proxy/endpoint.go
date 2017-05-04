@@ -28,29 +28,17 @@ import (
 type EndpointStatus int
 
 const (
-	EndpointNotExits EndpointStatus = iota
-	EndpointNotConfigured
-	EndpointStopped
-	EndpointStarting
+	EndpointStopped EndpointStatus = iota
 	EndpointStarted
-	EndpointStopping
 	EndpointError
 )
 
 func (s EndpointStatus) String() string {
 	switch s {
-	case EndpointNotExits:
-		return "not exists"
-	case EndpointNotConfigured:
-		return "not configured"
 	case EndpointStopped:
 		return "stopped"
-	case EndpointStarting:
-		return "starting"
 	case EndpointStarted:
 		return "started"
-	case EndpointStopping:
-		return "stopping"
 	case EndpointError:
 		return "error"
 	}
@@ -58,9 +46,7 @@ func (s EndpointStatus) String() string {
 }
 
 func (s EndpointStatus) canStart() bool {
-	return s == EndpointNotExits ||
-		s == EndpointStopped ||
-		s == EndpointError
+	return s == EndpointStopped || s == EndpointError
 }
 
 type EndpointInfo struct {
