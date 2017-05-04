@@ -36,9 +36,9 @@ func StartEndpoint(name string, globals *config.Globals) error {
 	endpoints.mu.Lock()
 	e, ok := endpoints.endpoints[name]
 	if ok {
-		e.Update(*conf)
+		e.Update(conf)
 	} else {
-		e = newProxyEndpoint(*conf, globals)
+		e = newProxyEndpoint(conf, globals)
 		endpoints.endpoints[name] = e
 	}
 

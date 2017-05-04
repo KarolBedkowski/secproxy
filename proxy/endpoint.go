@@ -77,7 +77,7 @@ type EndpointInfo struct {
 }
 
 type proxyEndpoint struct {
-	conf    config.EndpointConf
+	conf    *config.EndpointConf
 	globals *config.Globals
 	llog    logging.Logger
 
@@ -98,9 +98,9 @@ type proxyEndpoint struct {
 	mu sync.RWMutex
 }
 
-func newProxyEndpoint(c config.EndpointConf, g *config.Globals) *proxyEndpoint {
+func newProxyEndpoint(c *config.EndpointConf, g *config.Globals) *proxyEndpoint {
 	return &proxyEndpoint{
-		conf:    c,
+		conf:    c.Clone(),
 		globals: g,
 		llog:    logServer.With("endpoint", c.Name),
 
@@ -109,11 +109,11 @@ func newProxyEndpoint(c config.EndpointConf, g *config.Globals) *proxyEndpoint {
 	}
 }
 
-func (p *proxyEndpoint) Update(c config.EndpointConf) {
+func (p *proxyEndpoint) Update(c *config.EndpointConf) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.conf = c
+	p.conf = c.Clone()
 }
 
 func (p *proxyEndpoint) status() (EndpointStatus, EndpointStatus) {
