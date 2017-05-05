@@ -6,22 +6,22 @@ import (
 	"net/http"
 )
 
-// csrf tokens len
+// ccsrf tokens len
 const csrftokenlen = 64
 
-// csrf tokens name in context
+// CONTEXTCSRFTOKEN is csrf tokens name in context
 const CONTEXTCSRFTOKEN = "csrf_token"
 
-// csrf tokens name formms
+// FORMCSRFTOKEN is csrf tokens name formms
 const FORMCSRFTOKEN = "BasePageContext.CsrfToken"
 
-// alternative csrf token name
+// FORMCSRFTOKEN2 is alternative csrf token name
 const FORMCSRFTOKEN2 = "CsrfToken"
 
 // CsrfHandler - middleware verify CSRF token in request.
 func CsrfHandler(h http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		sess := GetSessionStore(w, r)
+		sess := getSessionStore(w, r)
 		csrfToken := sess.Values[CONTEXTCSRFTOKEN]
 		if r.Method == "POST" && r.FormValue(FORMCSRFTOKEN) != csrfToken && r.FormValue(FORMCSRFTOKEN2) != csrfToken {
 			http.Error(w, "Fobidden/CSRF", http.StatusForbidden)

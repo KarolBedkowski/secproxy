@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	Log         = logrus.New()
+	topLogger   = logrus.New()
 	logFilename string
 )
 
@@ -31,7 +31,7 @@ func (f levelFlag) Set(level string) error {
 	if err != nil {
 		return err
 	}
-	Log.Level = l
+	topLogger.Level = l
 	return nil
 }
 
@@ -42,21 +42,22 @@ func (l logfileFlag) String() string {
 }
 
 // Set implements flag.Value.
-func (f logfileFlag) Set(name string) error {
+func (l logfileFlag) Set(name string) error {
 	file, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		logFilename = ""
 		return fmt.Errorf("open file for logging error: %s", err)
 	}
-	Log.Formatter = &logrus.TextFormatter{DisableColors: true}
-	Log.Out = file
+	topLogger.Infof("logging to file %v", name)
+	topLogger.Formatter = &logrus.TextFormatter{DisableColors: true}
+	topLogger.Out = file
 	logFilename = name
 	return nil
 }
 
 func init() {
 	flag.CommandLine.Var(
-		levelFlag(Log.Level.String()),
+		levelFlag(topLogger.Level.String()),
 		"log.level",
 		"Only log messages with the given severity or above. Valid levels: [debug, info, warn, error, fatal]",
 	)
@@ -67,22 +68,27 @@ func init() {
 	)
 }
 
-func Init() {
-}
-
+// SetLogLevel change logging level
 func SetLogLevel(level string) (ok bool) {
 	l, err := logrus.ParseLevel(level)
 	if err != nil {
 		return false
 	}
-	Log.Level = l
+	topLogger.Level = l
 	return true
 }
 
+// GetLogLevel returns current logging level
+func GetLogLevel() string {
+	return topLogger.Level.String()
+}
+
+// LogFilename returns current log filename
 func LogFilename() string {
 	return logFilename
 }
 
+// Logger interface
 type Logger interface {
 	Debug(string, ...interface{})
 	Info(string, ...interface{})
@@ -99,8 +105,9 @@ type logger struct {
 	entry *logrus.Entry
 }
 
+// NewLogger create new Logger for module
 func NewLogger(module string) Logger {
-	l := Log.WithField("module", module)
+	l := topLogger.WithField("module", module)
 	return logger{entry: l}
 }
 

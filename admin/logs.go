@@ -23,5 +23,5 @@ func logsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 		ctx.Log = "Loading log file error: " + err.Error()
 	}
 
-	RenderTemplateStd(w, ctx, "logs.tmpl")
+	renderTemplateStd(w, ctx, "logs.tmpl")
 }

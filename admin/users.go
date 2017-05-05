@@ -9,12 +9,11 @@ import (
 
 var logUsers = logging.NewLogger("admin.users")
 
-// Init - Initialize application
-func InitUsersHandlers(globals *config.Globals, parentRotuer *mux.Route) {
+func initUsersHandlers(globals *config.Globals, parentRotuer *mux.Route) {
 	router := parentRotuer.Subrouter()
-	router.HandleFunc("/user/{login}", SecurityContextHandler(userPageHandler, globals, "ADMIN"))
-	router.HandleFunc("/user/", SecurityContextHandler(userPageHandler, globals, "ADMIN"))
-	router.HandleFunc("/", SecurityContextHandler(usersPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/user/{login}", securityContextHandler(userPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/user/", securityContextHandler(userPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/", securityContextHandler(usersPageHandler, globals, "ADMIN"))
 }
 
 func usersPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
@@ -22,7 +21,7 @@ func usersPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 		*BasePageContext
 		Users []*config.User
 	}{bctx, bctx.Globals.GetUsers()}
-	RenderTemplateStd(w, ctx, "users/index.tmpl")
+	renderTemplateStd(w, ctx, "users/index.tmpl")
 }
 
 type (
@@ -112,7 +111,7 @@ func userPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageConte
 		}
 	}
 	ctx.Save()
-	RenderTemplateStd(w, ctx, "users/user.tmpl")
+	renderTemplateStd(w, ctx, "users/user.tmpl")
 }
 
 type (
@@ -180,5 +179,5 @@ func chpassPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCon
 	}
 
 	ctx.Save()
-	RenderTemplateStd(w, ctx, "users/chpass.tmpl")
+	renderTemplateStd(w, ctx, "users/chpass.tmpl")
 }

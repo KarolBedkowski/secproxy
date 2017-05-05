@@ -26,7 +26,6 @@ func main() {
 
 	flag.Parse()
 
-	logging.Init()
 	globals := config.NewGlobals()
 
 	defer func() {

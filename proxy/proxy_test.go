@@ -7,9 +7,9 @@ import (
 
 func TestAcceptAddresPos(t *testing.T) {
 	networks := []*net.IPNet{
-		&net.IPNet{net.ParseIP("127.0.0.1"), net.CIDRMask(32, 32)},
-		&net.IPNet{net.ParseIP("192.168.0.1"), net.CIDRMask(24, 32)},
-		&net.IPNet{net.ParseIP("10.0.0.1"), net.CIDRMask(8, 32)},
+		&net.IPNet{IP: net.ParseIP("127.0.0.1"), Mask: net.CIDRMask(32, 32)},
+		&net.IPNet{IP: net.ParseIP("192.168.0.1"), Mask: net.CIDRMask(24, 32)},
+		&net.IPNet{IP: net.ParseIP("10.0.0.1"), Mask: net.CIDRMask(8, 32)},
 	}
 
 	testPosAddr := []string{
@@ -31,9 +31,9 @@ func TestAcceptAddresPos(t *testing.T) {
 
 func TestAcceptAddresNeg(t *testing.T) {
 	networks := []*net.IPNet{
-		&net.IPNet{net.ParseIP("127.0.0.1"), net.CIDRMask(32, 32)},
-		&net.IPNet{net.ParseIP("192.168.0.1"), net.CIDRMask(24, 32)},
-		&net.IPNet{net.ParseIP("10.0.0.1"), net.CIDRMask(8, 32)},
+		&net.IPNet{IP: net.ParseIP("127.0.0.1"), Mask: net.CIDRMask(32, 32)},
+		&net.IPNet{IP: net.ParseIP("192.168.0.1"), Mask: net.CIDRMask(24, 32)},
+		&net.IPNet{IP: net.ParseIP("10.0.0.1"), Mask: net.CIDRMask(8, 32)},
 	}
 
 	testPosAddr := []string{
@@ -52,7 +52,7 @@ func TestAcceptAddresNeg(t *testing.T) {
 }
 
 func createNet(ip string, mask int) *net.IPNet {
-	return &net.IPNet{net.ParseIP(ip), net.CIDRMask(mask, 32)}
+	return &net.IPNet{IP: net.ParseIP(ip), Mask: net.CIDRMask(mask, 32)}
 }
 
 func TestPrepareNetworksSingle(t *testing.T) {

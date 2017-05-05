@@ -9,12 +9,11 @@ import (
 
 var logSettings = logging.NewLogger("web")
 
-// Init - Initialize application
-func InitSettingsHandlers(globals *config.Globals, parentRotuer *mux.Route) {
+func initSettingsHandlers(globals *config.Globals, parentRotuer *mux.Route) {
 	router := parentRotuer.Subrouter()
-	router.HandleFunc("/", SecurityContextHandler(settingsPageHandler, globals, "ADMIN"))
-	router.HandleFunc("/setdebug", SecurityContextHandler(setdebugPageHandler, globals, "ADMIN"))
-	router.HandleFunc("/confreload", SecurityContextHandler(confReloadPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/", securityContextHandler(settingsPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/setdebug", securityContextHandler(setdebugPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/confreload", securityContextHandler(confReloadPageHandler, globals, "ADMIN"))
 }
 
 func settingsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
@@ -24,11 +23,11 @@ func settingsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 		Configuration string
 	}{
 		BasePageContext: bctx,
-		LogLevel:        logging.Log.Level.String(),
+		LogLevel:        logging.GetLogLevel(),
 		Configuration:   bctx.Globals.Config.String(),
 	}
 
-	RenderTemplateStd(w, ctx, "settings.tmpl")
+	renderTemplateStd(w, ctx, "settings.tmpl")
 }
 
 func setdebugPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {

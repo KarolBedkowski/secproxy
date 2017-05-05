@@ -14,12 +14,11 @@ import (
 
 var logCerts = logging.NewLogger("admin.certs")
 
-// Init - Initialize application
-func InitCertsHandlers(globals *config.Globals, parentRotuer *mux.Route) {
+func initCertsHandlers(globals *config.Globals, parentRotuer *mux.Route) {
 	router := parentRotuer.Subrouter()
-	router.HandleFunc("/", SecurityContextHandler(certsPageHandler, globals, "ADMIN"))
-	router.HandleFunc("/upload", SecurityContextHandler(certUploadPageHandler, globals, "ADMIN")).Methods("POST")
-	router.HandleFunc("/delete", SecurityContextHandler(certDeletePageHandler, globals, "ADMIN"))
+	router.HandleFunc("/", securityContextHandler(certsPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/upload", securityContextHandler(certUploadPageHandler, globals, "ADMIN")).Methods("POST")
+	router.HandleFunc("/delete", securityContextHandler(certDeletePageHandler, globals, "ADMIN"))
 }
 
 func certsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
@@ -31,7 +30,7 @@ func certsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 		append(bctx.Globals.FindCerts(), bctx.Globals.FindKeys()...),
 	}
 
-	RenderTemplateStd(w, ctx, "certs.tmpl")
+	renderTemplateStd(w, ctx, "certs.tmpl")
 }
 
 func certUploadPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {

@@ -49,7 +49,7 @@ func getTemplate(name string, nocache bool, filenames ...string) (tmpl *template
 				logTemplates.
 					With("err", err).
 					With("template", name).
-					Error("ERROR: RenderTemplate get template error")
+					Error("ERROR: renderTemplate get template error")
 			}
 		}
 		if ctemplate.Lookup("scripts") == nil {
@@ -66,8 +66,8 @@ func getTemplate(name string, nocache bool, filenames ...string) (tmpl *template
 	return ctemplate
 }
 
-// RenderTemplate - render given templates.
-func RenderTemplate(w http.ResponseWriter, ctx PageContextInterface, name string, filenames ...string) {
+// renderTemplate - render given templates.
+func renderTemplate(w http.ResponseWriter, ctx PageContextInterface, name string, filenames ...string) {
 	ctemplate := getTemplate(name, ctx.GetGlobals().DevMode, filenames...)
 	if ctemplate == nil {
 		return
@@ -78,21 +78,21 @@ func RenderTemplate(w http.ResponseWriter, ctx PageContextInterface, name string
 			With("err", err).
 			With("template", name).
 			With("filenames", filenames).
-			Error("ERROR: RenderTemplate execution failed")
+			Error("ERROR: renderTemplate execution failed")
 	}
 }
 
-// StdTemplates contains list of templates included when rendering by RenderTemplateStd
+// StdTemplates contains list of templates included when rendering by renderTemplateStd
 var StdTemplates = []string{"base.tmpl", "flash.tmpl"}
 
-// RenderTemplateStd render given templates + StdTemplates.
+// renderTemplateStd render given templates + StdTemplates.
 // Main section in template must be named 'base'.
 // First template file name is used as template name.
-func RenderTemplateStd(w http.ResponseWriter, ctx PageContextInterface, filenames ...string) {
+func renderTemplateStd(w http.ResponseWriter, ctx PageContextInterface, filenames ...string) {
 	filenames = append(filenames, StdTemplates...)
 	logTemplates.With("filenames", filenames).
-		Debug("RenderTemplateStd")
-	RenderTemplate(w, ctx, filenames[0], filenames...)
+		Debug("renderTemplateStd")
+	renderTemplate(w, ctx, filenames[0], filenames...)
 }
 
 func fileExists(name string) bool {

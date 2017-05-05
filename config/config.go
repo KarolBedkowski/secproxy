@@ -9,11 +9,13 @@ import (
 )
 
 var (
+	// AppVersion contains date and version built application
 	AppVersion = "dev"
 	logConfig  = logging.NewLogger("config.config")
 )
 
 type (
+	// AdminPanelConf is configuration administration panel
 	AdminPanelConf struct {
 		HTTPAddress     string
 		HTTPSAddress    string
@@ -107,7 +109,7 @@ func (ac *AppConfiguration) validate() bool {
 func (ac *AppConfiguration) String() string {
 	data, err := toml.Marshal(*ac)
 	if err != nil {
-		logConfig.With("err", err).Error("Config: marshal error; conf=%+v", ac)
+		logConfig.With("err", err).Error("Config: marshal error")
 		return err.Error()
 	}
 	return string(data)

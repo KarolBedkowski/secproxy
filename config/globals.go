@@ -17,6 +17,7 @@ import (
 )
 
 type (
+	// Globals structures & settings
 	Globals struct {
 		Config  *AppConfiguration
 		DevMode bool
@@ -39,6 +40,7 @@ var (
 	logGlobals = logging.NewLogger("config.globals")
 )
 
+// NewGlobals create new global object
 func NewGlobals() *Globals {
 	globals := &Globals{
 		confFilename: *configFilenameFlag,
@@ -52,6 +54,7 @@ func NewGlobals() *Globals {
 	return globals
 }
 
+// Close globals - database
 func (g *Globals) Close() error {
 	logGlobals.Info("Globals: Closeing")
 	g.mu.Lock()
@@ -64,6 +67,7 @@ func (g *Globals) Close() error {
 	return nil
 }
 
+// ReloadConfig load (reload) configuration
 func (g *Globals) ReloadConfig() {
 	llog := logGlobals.With("filename", g.confFilename)
 	llog.Info("Globals: Reloading config")
@@ -132,6 +136,7 @@ func (g *Globals) openDatabases() {
 	logGlobals.Debug("Globals: database opened")
 }
 
+// GetUser get user from database by login
 func (g *Globals) GetUser(login string) (u *User) {
 	var v []byte
 	err := g.db.View(func(tx *bolt.Tx) error {
@@ -172,6 +177,7 @@ func decodeUser(buff []byte) (u *User, err error) {
 	return u, nil
 }
 
+// SaveUser into database
 func (g *Globals) SaveUser(u *User) {
 	llog := logGlobals.With("user", u.Login)
 	llog.Debug("Globals: saving user...")
@@ -192,6 +198,7 @@ func (g *Globals) SaveUser(u *User) {
 	}
 }
 
+// GetUsers load all users from database
 func (g *Globals) GetUsers() (users []*User) {
 	err := g.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(usersBucket)
@@ -199,9 +206,8 @@ func (g *Globals) GetUsers() (users []*User) {
 			u, err := decodeUser(v)
 			if err != nil {
 				return fmt.Errorf("decode user error: %s", err)
-			} else {
-				users = append(users, u)
 			}
+			users = append(users, u)
 			return nil
 		})
 	})
@@ -223,6 +229,7 @@ func decodeEndpoint(buff []byte) (ec *EndpointConf, err error) {
 	return ec, err
 }
 
+// GetEndpoint from database by name
 func (g *Globals) GetEndpoint(name string) (e *EndpointConf) {
 	llog := logGlobals.With("endpoint", name)
 	var v []byte
@@ -246,6 +253,7 @@ func (g *Globals) GetEndpoint(name string) (e *EndpointConf) {
 	return e
 }
 
+// SaveEndpoint into database
 func (g *Globals) SaveEndpoint(e *EndpointConf) {
 	llog := logGlobals.With("endpoint", e.Name)
 	llog.Info("Globals: saving endpoint...")
@@ -266,6 +274,7 @@ func (g *Globals) SaveEndpoint(e *EndpointConf) {
 	}
 }
 
+// DeleteEndpoint from database by name
 func (g *Globals) DeleteEndpoint(name string) (ok bool) {
 	err := g.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(endpointsBucket)
@@ -277,6 +286,7 @@ func (g *Globals) DeleteEndpoint(name string) (ok bool) {
 	return err == nil
 }
 
+// GetEndpoints loads all endpoints from database
 func (g *Globals) GetEndpoints() (eps []*EndpointConf) {
 	err := g.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(endpointsBucket)
@@ -295,6 +305,7 @@ func (g *Globals) GetEndpoints() (eps []*EndpointConf) {
 	return
 }
 
+// FindCerts get names of all cert files (.crt files)
 func (g *Globals) FindCerts() (names []string) {
 	filepath.Walk(g.Config.CertsDir,
 		func(path string, info os.FileInfo, err error) error {
@@ -312,6 +323,7 @@ func (g *Globals) FindCerts() (names []string) {
 	return
 }
 
+// FindKeys get names of all private keys files (.pem files)
 func (g *Globals) FindKeys() (names []string) {
 	filepath.Walk(g.Config.CertsDir,
 		func(path string, info os.FileInfo, err error) error {
@@ -329,6 +341,7 @@ func (g *Globals) FindKeys() (names []string) {
 	return
 }
 
+// CertUsed find endpoint name where certificate or key is used
 func (g *Globals) CertUsed(name string) (epname string, used bool) {
 	for _, ep := range g.GetEndpoints() {
 		if ep.SslCert == name || ep.SslKey == name {

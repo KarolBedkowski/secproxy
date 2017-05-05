@@ -70,7 +70,7 @@ func loginPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 		}
 
 		ctx.AddFlashMessage("User log in", "info")
-		ctx.Session.SetLoggedUser(NewSessionUser(user.Login, user.Role))
+		ctx.Session.SetLoggedUser(newSessionUser(user.Login, user.Role))
 		ctx.Save()
 		log.Info("Login page: user log in")
 
@@ -84,10 +84,10 @@ func loginPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 	}
 
 	ctx.Save()
-	RenderTemplate(w, ctx, "login", "login.tmpl", "flash.tmpl")
+	renderTemplate(w, ctx, "login", "login.tmpl", "flash.tmpl")
 }
 
 func logoffHandler(w http.ResponseWriter, r *http.Request) {
-	ClearSession(w, r)
+	clearSession(w, r)
 	http.Redirect(w, r, "/", http.StatusFound)
 }

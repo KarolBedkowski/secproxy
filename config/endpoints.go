@@ -5,6 +5,7 @@ import (
 )
 
 type (
+	// EndpointConf is on endpoint configuration
 	EndpointConf struct {
 		Name         string
 		Description  string
@@ -23,6 +24,8 @@ type (
 	}
 )
 
+
+// AcceptUser check is login on list users accepted to use this endpoint
 func (e *EndpointConf) AcceptUser(login string) bool {
 	for _, user := range e.Users {
 		if user == login {
@@ -34,6 +37,7 @@ func (e *EndpointConf) AcceptUser(login string) bool {
 
 var nameValidator = regexp.MustCompile("^\\w+$")
 
+// Validate configuration
 func (e *EndpointConf) Validate() (errors map[string]string) {
 	errors = make(map[string]string)
 	if !nameValidator.MatchString(e.Name) {
@@ -56,6 +60,7 @@ func (e *EndpointConf) Validate() (errors map[string]string) {
 	return
 }
 
+// Clone endpoint configuration structure
 func (e *EndpointConf) Clone() *EndpointConf {
 	ne := &EndpointConf{
 		Name:         e.Name,

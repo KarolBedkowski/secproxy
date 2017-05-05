@@ -7,16 +7,16 @@ import (
 
 var logUsers = logging.NewLogger("config.users")
 
-type (
-	User struct {
-		Login    string
-		Name     string
-		Password string
-		Role     string
-		Active   bool
-	}
-)
+// User in system
+type User struct {
+	Login    string
+	Name     string
+	Password string
+	Role     string
+	Active   bool
+}
 
+// CheckPassword check is pass is equal to hash in User object
 func (u *User) CheckPassword(pass string) (ok bool) {
 	if u.Password == "" && pass == "" {
 		return true
@@ -25,6 +25,7 @@ func (u *User) CheckPassword(pass string) (ok bool) {
 	return err == nil
 }
 
+// UpdatePassword in user object; password is hashed
 func (u *User) UpdatePassword(newPass string) {
 	if newPass == "" {
 		u.Password = ""
@@ -40,6 +41,7 @@ func (u *User) UpdatePassword(newPass string) {
 	}
 }
 
+// Validate user structure; returns map of errors
 func (u *User) Validate() (errors map[string]string) {
 	errors = make(map[string]string)
 	if u.Name == "" {
@@ -51,6 +53,7 @@ func (u *User) Validate() (errors map[string]string) {
 	return
 }
 
+// Clone user structure
 func (u *User) Clone() (nu *User) {
 	return &User{
 		u.Login,

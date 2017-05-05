@@ -7,13 +7,14 @@ import (
 	"strings"
 )
 
+// PageContextInterface define interface for page context
 type PageContextInterface interface {
 	GetGlobals() *config.Globals
 }
 
 // BasePageContext context for pages
 type BasePageContext struct {
-	Session        *MySession
+	Session        *mySession
 	ResponseWriter http.ResponseWriter
 	Request        *http.Request
 	CsrfToken      string
@@ -21,12 +22,12 @@ type BasePageContext struct {
 	Globals        *config.Globals
 }
 
-// Types of flashes
+// FlashKind keep types of flashes
 var FlashKind = []string{"error", "info", "success"}
 
-// NewBasePageContext create base page context for request
-func NewBasePageContext(globals *config.Globals, w http.ResponseWriter, r *http.Request) *BasePageContext {
-	s := GetSessionStore(w, r)
+// newBasePageContext create base page context for request
+func newBasePageContext(globals *config.Globals, w http.ResponseWriter, r *http.Request) *BasePageContext {
+	s := getSessionStore(w, r)
 	csrfToken := s.Values[CONTEXTCSRFTOKEN]
 	if csrfToken == nil {
 		csrfToken = CreateNewCsrfToken()
@@ -52,6 +53,7 @@ func NewBasePageContext(globals *config.Globals, w http.ResponseWriter, r *http.
 	return ctx
 }
 
+// GetGlobals returns global object from context
 func (ctx *BasePageContext) GetGlobals() *config.Globals {
 	return ctx.Globals
 }
@@ -77,14 +79,16 @@ func (ctx *BasePageContext) AddFlashMessageErr(msg string, err string, kind stri
 
 // Save session by page context
 func (ctx *BasePageContext) Save() error {
-	return SaveSession(ctx.ResponseWriter, ctx.Request)
+	return saveSession(ctx.ResponseWriter, ctx.Request)
 }
 
+// UserLogged check is current session belong to logged user
 func (ctx *BasePageContext) UserLogged() bool {
 	user, ok := ctx.Session.GetLoggedUser()
 	return ok && user != nil
 }
 
+// UserLogin returns current logged user login
 func (ctx *BasePageContext) UserLogin() string {
 	if user, ok := ctx.Session.GetLoggedUser(); ok && user != nil {
 		return user.Login
@@ -92,11 +96,13 @@ func (ctx *BasePageContext) UserLogin() string {
 	return ""
 }
 
+// HasUserRole check is current user is logged and have given role
 func (ctx *BasePageContext) HasUserRole(role string) bool {
 	user, ok := ctx.Session.GetLoggedUser()
 	return ok && user.Role == role
 }
 
+// URLStartsWith returns true when current url starts with prefix
 func (ctx *BasePageContext) URLStartsWith(prefix string) bool {
 	return strings.HasPrefix(ctx.Request.URL.Path, prefix)
 }
@@ -107,15 +113,15 @@ type BaseContextHandlerFunc func(w http.ResponseWriter, r *http.Request, ctx *Ba
 // ContextHandler create BasePageContext for request
 func ContextHandler(h BaseContextHandlerFunc, globals *config.Globals) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewBasePageContext(globals, w, r)
+		ctx := newBasePageContext(globals, w, r)
 		h(w, r, ctx)
 	})
 }
 
-// SecurityContextHandler create BasePageContext for request and check user permissions.
-func SecurityContextHandler(h BaseContextHandlerFunc, globals *config.Globals, reqRole string) http.HandlerFunc {
+// securityContextHandler create BasePageContext for request and check user permissions.
+func securityContextHandler(h BaseContextHandlerFunc, globals *config.Globals, reqRole string) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := NewBasePageContext(globals, w, r)
+		ctx := newBasePageContext(globals, w, r)
 		user, ok := ctx.Session.GetLoggedUser()
 		if ok {
 			if reqRole == "" {

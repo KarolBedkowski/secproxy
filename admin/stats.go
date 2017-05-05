@@ -8,9 +8,9 @@ import (
 )
 
 // Init - Initialize application
-func InitStatsHandlers(globals *config.Globals, parentRotuer *mux.Route) {
+func initStatsHandlers(globals *config.Globals, parentRotuer *mux.Route) {
 	router := parentRotuer.Subrouter()
-	router.HandleFunc("/", SecurityContextHandler(statsPageHandler, globals, ""))
+	router.HandleFunc("/", securityContextHandler(statsPageHandler, globals, ""))
 }
 
 func statsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
@@ -22,5 +22,5 @@ func statsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 		Stats:           proxy.EndpointsInfo(),
 	}
 
-	RenderTemplateStd(w, ctx, "stats.tmpl")
+	renderTemplateStd(w, ctx, "stats.tmpl")
 }

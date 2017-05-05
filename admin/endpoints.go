@@ -10,13 +10,12 @@ import (
 
 var logEP = logging.NewLogger("admin.auth")
 
-// Init - Initialize application
-func InitEndpointsHandlers(globals *config.Globals, parentRotuer *mux.Route) {
+func initEndpointsHandlers(globals *config.Globals, parentRotuer *mux.Route) {
 	router := parentRotuer.Subrouter()
-	router.HandleFunc("/", SecurityContextHandler(endpointsPageHandler, globals, "ADMIN"))
-	router.HandleFunc("/endpoint/", SecurityContextHandler(endpointPageHandler, globals, "ADMIN"))
-	router.HandleFunc("/endpoint/{name}", SecurityContextHandler(endpointPageHandler, globals, "ADMIN"))
-	router.HandleFunc("/endpoint/{name}/{action}", SecurityContextHandler(endpointActionPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/", securityContextHandler(endpointsPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/endpoint/", securityContextHandler(endpointPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/endpoint/{name}", securityContextHandler(endpointPageHandler, globals, "ADMIN"))
+	router.HandleFunc("/endpoint/{name}/{action}", securityContextHandler(endpointActionPageHandler, globals, "ADMIN"))
 }
 
 type endpoint struct {
@@ -54,7 +53,7 @@ func endpointsPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePage
 				ErrorHTTPS:  errorHTTPS,
 			})
 	}
-	RenderTemplateStd(w, ctx, "endpoints/index.tmpl")
+	renderTemplateStd(w, ctx, "endpoints/index.tmpl")
 }
 
 type endpointForm struct {
@@ -141,7 +140,7 @@ func endpointPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageC
 	}
 
 	ctx.Save()
-	RenderTemplateStd(w, ctx, "endpoints/endpoint.tmpl")
+	renderTemplateStd(w, ctx, "endpoints/endpoint.tmpl")
 }
 
 func endpointActionPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {

@@ -16,20 +16,21 @@ var (
 	logAdmin  = logging.NewLogger("admin")
 )
 
+// StartAdmin panel
 func StartAdmin(globals *config.Globals) {
-	InitSessionStore(globals.Config)
-	appRouter.HandleFunc("/", SecurityContextHandler(mainPageHandler, globals, ""))
+	initSessionStore(globals.Config)
+	appRouter.HandleFunc("/", securityContextHandler(mainPageHandler, globals, ""))
 
 	appRouter.HandleFunc("/login", ContextHandler(loginPageHandler, globals)).Name("auth-login")
 	appRouter.HandleFunc("/logout", logoffHandler)
-	appRouter.HandleFunc("/chpass", SecurityContextHandler(chpassPageHandler, globals, ""))
-	appRouter.HandleFunc("/logs", SecurityContextHandler(logsPageHandler, globals, "ADMIN"))
+	appRouter.HandleFunc("/chpass", securityContextHandler(chpassPageHandler, globals, ""))
+	appRouter.HandleFunc("/logs", securityContextHandler(logsPageHandler, globals, "ADMIN"))
 
-	InitUsersHandlers(globals, appRouter.PathPrefix("/users"))
-	InitEndpointsHandlers(globals, appRouter.PathPrefix("/endpoints"))
-	InitCertsHandlers(globals, appRouter.PathPrefix("/certs"))
-	InitStatsHandlers(globals, appRouter.PathPrefix("/stats"))
-	InitSettingsHandlers(globals, appRouter.PathPrefix("/settings"))
+	initUsersHandlers(globals, appRouter.PathPrefix("/users"))
+	initEndpointsHandlers(globals, appRouter.PathPrefix("/endpoints"))
+	initCertsHandlers(globals, appRouter.PathPrefix("/certs"))
+	initStatsHandlers(globals, appRouter.PathPrefix("/stats"))
+	initSettingsHandlers(globals, appRouter.PathPrefix("/settings"))
 
 	http.Handle("/static/", prometheus.InstrumentHandler(
 		"static",
@@ -73,7 +74,7 @@ func StartAdmin(globals *config.Globals) {
 }
 
 func mainPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageContext) {
-	//	RenderTemplateStd(w, bctx, "index.tmpl")
+	//	renderTemplateStd(w, bctx, "index.tmpl")
 	http.Redirect(w, r, "/stats/", http.StatusFound)
 }
 

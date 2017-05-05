@@ -35,7 +35,3 @@ func LogHandler(h http.Handler, prefix string, logkv map[string]interface{}) htt
 		h.ServeHTTP(writer, r)
 	})
 }
-
-func RequestLogEntry(r *http.Request) string {
-	return r.Method + " " + r.URL.String() + " " + r.RemoteAddr
-}

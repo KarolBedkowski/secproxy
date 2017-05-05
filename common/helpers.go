@@ -25,6 +25,7 @@ func BuildQuery(pairs ...string) (query string) {
 	return
 }
 
+// FileExists check is file exists
 func FileExists(path string) (exists bool) {
 	_, err := os.Stat(path)
 	if err == nil {
@@ -33,6 +34,7 @@ func FileExists(path string) (exists bool) {
 	return !os.IsNotExist(err)
 }
 
+// DirExists check is directory exists
 func DirExists(path string) (exists bool) {
 	stat, err := os.Stat(path)
 	if err == nil {
