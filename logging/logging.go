@@ -48,6 +48,7 @@ func (f logfileFlag) Set(name string) error {
 		logFilename = ""
 		return fmt.Errorf("open file for logging error: %s", err)
 	}
+	Log.Formatter = &logrus.TextFormatter{DisableColors: true}
 	Log.Out = file
 	logFilename = name
 	return nil
