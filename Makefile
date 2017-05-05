@@ -1,6 +1,6 @@
 VERSION=`git describe --always`
-DATE=`date`
-LDFLAGS="-X k.prv/secproxy/config.AppVersion '$(VERSION) - $(DATE)'"
+DATE=`date +%Y%m%d%H%M%S`
+LDFLAGS="-X k.prv/secproxy/config.AppVersion='$(VERSION)-$(DATE)'"
 GOBUILD=go
 
 .PHONY: resources build certs
@@ -21,7 +21,7 @@ clean:
 run:
 	# mkdir temp || true
 	git checkout resources/resources.go
-	go-reload secproxy.go -log.level=debug -devMode=true
+	go-reload secproxy.go -log.level=debug -devMode=true -log.file=secproxy.log
 
 certs:
 	mkdir -p certs
