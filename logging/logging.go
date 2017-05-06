@@ -6,7 +6,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"io"
 	"net/http"
-	"os"
 	"runtime"
 	"strings"
 )
@@ -35,6 +34,8 @@ func (f levelFlag) Set(level string) error {
 	return nil
 }
 
+var fileLogHook *logrusFileHook
+
 type logfileFlag string
 
 func (l logfileFlag) String() string {
@@ -43,15 +44,25 @@ func (l logfileFlag) String() string {
 
 // Set implements flag.Value.
 func (l logfileFlag) Set(name string) error {
-	file, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		logFilename = ""
-		return fmt.Errorf("open file for logging error: %s", err)
+	if name == "" {
+		return fmt.Errorf("set log file failed: missing name")
 	}
-	topLogger.Infof("logging to file %v", name)
-	topLogger.Formatter = &logrus.TextFormatter{DisableColors: true}
-	topLogger.Out = file
+
+	if fileLogHook != nil {
+		fileLogHook.Close()
+		fileLogHook = nil
+	}
+
+	hook, err := newFileHook(name)
+	if err != nil {
+		return err
+	}
+
+	logrus.AddHook(hook)
+	topLogger.Hooks.Add(hook)
 	logFilename = name
+	fileLogHook = hook
+	topLogger.Info("logging to ", name)
 	return nil
 }
 
