@@ -23,6 +23,7 @@ Requirements:
    * toml (https://github.com/naoina/toml/)
 	* boltdb (http://github.com/boltdb/bolt/)
 	* logrus (http://github.com/Sirupsen/logrus/)
+	* gopkg.in/ldap.v2 f(https://github.com/go-ldap/ldap)
 
  * go-asset-builder (optional)
  * yui-compressor (optional)

@@ -13,3 +13,8 @@ CertsDir = "./certs"
 	SslCert = "./certs/127.0.0.1-server.crt"
 	SslKey = "./certs/127.0.0.1-server.pem"
 
+[Ldap]
+	Enable = true
+	Server = "localhost:1389"
+	StartTLS = false
+	Query="cn=%s,ou=users,dc=test,dc=local"
