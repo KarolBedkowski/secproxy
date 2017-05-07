@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"k.prv/secproxy/config"
 	"k.prv/secproxy/logging"
 	"net/http"
 	"strings"
@@ -57,7 +58,8 @@ func loginPageHandler(w http.ResponseWriter, r *http.Request, bctx *BasePageCont
 
 		user := bctx.Globals.GetUser(ctx.Form.Login)
 
-		if user == nil || !user.CheckPassword(ctx.Form.Password) {
+		if user == nil || (!user.CheckPassword(ctx.Form.Password) &&
+			!config.AuthenticateLdap(ctx.Form.Login, ctx.Form.Password, bctx.Globals)) {
 			log.Info("Login page: user pass failed")
 			ctx.Message = "Wrong login and/or password"
 			break

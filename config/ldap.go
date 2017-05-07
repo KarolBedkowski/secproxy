@@ -1,7 +1,7 @@
 //
 // ldap.go
 // Copyright (C) 2017 Karol Będkowski
-//
+// TODO: cache credentials
 
 package config
 
