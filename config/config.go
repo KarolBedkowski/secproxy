@@ -10,7 +10,7 @@ import (
 
 var (
 	// AppVersion contains date and version built application
-	AppVersion = "dev"
+	AppVersion = "0.1+dev"
 	logConfig  = logging.NewLogger("config.config")
 )
 

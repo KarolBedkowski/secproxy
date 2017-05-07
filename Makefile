@@ -1,15 +1,15 @@
 VERSION=`git describe --always`
 DATE=`date +%Y%m%d%H%M%S`
 LDFLAGS="-X k.prv/secproxy/config.AppVersion='$(VERSION)-$(DATE)'"
-GOBUILD=go
 
 .PHONY: resources build certs
 
 build: resources
-	GOGCCFLAGS="-s -fPIC -O4 -Ofast -march=native" $(GODEP) $(GOBUILD) build -ldflags $(LDFLAGS)
+	go build -ldflags $(LDFLAGS)
 
 build_pi: resources
-	CGO_ENABLED="0" GOGCCFLAGS="-fPIC -O4 -Ofast -march=native -s" GOARCH=arm GOARM=5 go build -o  -ldflags $(LDFLAGS)
+	CGO_ENABLED="0" GOGCCFLAGS="-fPIC -O4 -Ofast -march=native -s" GOARCH=arm GOARM=5 \
+		go build -o  -ldflags $(LDFLAGS)
 	#CGO_ENABLED="0" GOGCCFLAGS="-g -O2 -fPIC" GOARCH=arm GOARM=5 go build secproxy.go 
 
 clean:
@@ -30,7 +30,7 @@ certs:
 	openssl req -new -x509 -key certs/key.pem -out certs/cert.pem -days 1000
 
 debug: clean
-	$(GOBUILD) build -gcflags "-N -l" secproxy.go
+	go build -gcflags "-N -l" secproxy.go
 	gdb -tui ./secproxy -d $GOROOT
 
 

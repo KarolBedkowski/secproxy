@@ -5,7 +5,7 @@ resources
 *.toml
 build
 *.pem
-*.cert
+*.crt
 .*
 *.kvdb
 Godeps/_workspace/
