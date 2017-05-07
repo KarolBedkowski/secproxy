@@ -76,7 +76,7 @@ func (g *Globals) ReloadConfig() {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	g.Config, _ = LoadConfiguration(g.confFilename)
+	g.Config = LoadConfiguration(g.confFilename)
 
 	if g.Config.DBFilename == "" {
 		llog.Warn("Globals: Missing endpoints configuration file; using ./database.db")

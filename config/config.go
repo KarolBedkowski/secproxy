@@ -35,25 +35,28 @@ type (
 		CARootsDir string
 
 		AdminPanel AdminPanelConf
+
+		Ldap LDAPConfiguration
 	}
 )
 
 // LoadConfiguration from given file
-func LoadConfiguration(filename string) (conf *AppConfiguration, err error) {
+func LoadConfiguration(filename string) (conf *AppConfiguration) {
 	llog := logConfig.With("filename", filename)
 	llog.Info("Config: loading...")
-	var content []byte
 	conf = &AppConfiguration{}
 	conf.loadDefaults()
-	content, err = ioutil.ReadFile(filename)
-	if err == nil {
+	if content, err := ioutil.ReadFile(filename); err == nil {
 		if err = toml.Unmarshal(content, conf); err != nil {
-			panic(err)
+			llog.With("err", err).Panic("Config: parse error")
 		}
 	} else {
-		llog.With("err", err).Error("Config: file load error")
+		llog.With("err", err).Panic("Config: file load error")
 	}
-	conf.validate()
+	if err := conf.validate(); err != nil {
+		llog.With("err", err).Panic("Config: validation error")
+		return
+	}
 
 	if !common.DirExists(conf.CertsDir) {
 		llog.Info("Config: dir for certs not exists - creating %s", conf.CertsDir)
@@ -100,10 +103,14 @@ func (ac *AppConfiguration) loadDefaults() {
 	ac.AdminPanel.SslKey = "cert.pem"
 	ac.CertsDir = "./certs"
 	ac.CARootsDir = "./certs-ca"
+	ac.Ldap.Enable = false
 }
 
-func (ac *AppConfiguration) validate() bool {
-	return true
+func (ac *AppConfiguration) validate() error {
+	if err := ac.Ldap.Validate(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (ac *AppConfiguration) String() string {
