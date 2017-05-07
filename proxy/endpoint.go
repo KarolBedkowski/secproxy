@@ -364,8 +364,7 @@ func (p *proxyEndpoint) authenticationMW(h http.Handler) http.Handler {
 		// check authenticated user
 		if usr != "" {
 			user := p.globals.GetUser(usr)
-			if user.Active && p.conf.AcceptUser(user.Login) &&
-				(user.CheckPassword(pass) || config.AuthenticateLdap(usr, pass, p.globals)) {
+			if p.conf.AcceptUser(user.Login) && checkUser(user, pass, p.globals) {
 				// user ok
 				l.With("user", user.Login).Info("Proxy: request accepted for user")
 				r.Header.Set("X-Authenticated-User", usr)
