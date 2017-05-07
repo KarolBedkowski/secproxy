@@ -1,18 +1,45 @@
 //
 // ldap.go
 // Copyright (C) 2017 Karol Będkowski
-// TODO: cache credentials
 
 package config
 
 import (
 	"crypto/tls"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/ldap.v2"
 	"k.prv/secproxy/logging"
+	"time"
 )
 
 var logLdap = logging.NewLogger("config.ldap")
+
+// metrics
+var (
+	ldapReqDur = prometheus.NewSummary(
+		prometheus.SummaryOpts{
+			Namespace: "secproxy",
+			Subsystem: "ldap",
+			Name:      "request_duration_seconds",
+			Help:      "LDAP requests latencies in seconds",
+		},
+	)
+	ldapReqCnt = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "secproxy",
+			Subsystem: "ldap",
+			Name:      "requests_total",
+			Help:      "Total number of LDAP requests by status.",
+		},
+		[]string{"status"},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(ldapReqDur)
+	prometheus.MustRegister(ldapReqCnt)
+}
 
 //LDAPConfiguration for ldap client
 type LDAPConfiguration struct {
@@ -50,19 +77,21 @@ func AuthenticateLdap(login, pass string, g *Globals) (res bool) {
 
 	llog.Debug("LDAP: trying AuthenticateLdap")
 
+	start := time.Now()
+
 	l, err := ldap.Dial("tcp", conf.Server)
 	if err != nil {
 		llog.With("err", err).
 			Warn("LDAP: dial to ldap server %s failed", conf.Server)
+		ldapReqCnt.WithLabelValues("failed").Inc()
 		return false
 	}
 	//l.Debug = true
 
 	defer func() {
 		l.Close()
-		if e := recover(); e != nil {
-			llog.With("err", e).Debug("recovered")
-		}
+		elapsed := float64(time.Since(start)) / float64(time.Second)
+		ldapReqDur.Observe(elapsed)
 	}()
 
 	if conf.StartTLS {
@@ -70,6 +99,7 @@ func AuthenticateLdap(login, pass string, g *Globals) (res bool) {
 		if err != nil {
 			llog.With("err", err).
 				Warn("LDAP: start tls for ldap server %s failed", conf.Server)
+			ldapReqCnt.WithLabelValues("failed").Inc()
 			return false
 		}
 	}
@@ -77,9 +107,11 @@ func AuthenticateLdap(login, pass string, g *Globals) (res bool) {
 	err = l.Bind(query, pass)
 	if err != nil {
 		llog.With("err", err).Debug("LDAP: authenticate failed")
+		ldapReqCnt.WithLabelValues("success").Inc()
 		return false
 	}
 
 	llog.Debug("LDAP: authenticate success")
+	ldapReqCnt.WithLabelValues("success").Inc()
 	return true
 }
