@@ -1,6 +1,7 @@
 
 DBFilename = "database.kvdb"
 CertsDir = "./certs"
+CARootsDir = "./certs-ca"
 
 [AdminPanel]
 	StaticDir = "./static"
@@ -14,7 +15,11 @@ CertsDir = "./certs"
 	SslKey = "./certs/127.0.0.1-server.pem"
 
 [Ldap]
+	# enable users authentication in ldap server
 	Enable = true
+	# ldap server: host:port
 	Server = "localhost:1389"
+	# use tls/ssl connection
 	StartTLS = false
+	# ldap query; %s is replaced by login
 	Query="cn=%s,ou=users,dc=test,dc=local"
